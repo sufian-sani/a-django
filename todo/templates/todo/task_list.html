@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            margin: 0;
+            padding: 40px 16px;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .add-form input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-button {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 0;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .task-title {
+            flex: 1;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .toggle-button {
+            background: #10b981;
+            color: #ffffff;
+        }
+
+        .delete-button {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .empty {
+            text-align: center;
+            color: #6b7280;
+            padding: 20px 0 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>My Todo List</h1>
+
+        <form method="post" class="add-form">
+            {% csrf_token %}
+            {{ form.title }}
+            <button type="submit" class="add-button">Add</button>
+        </form>
+
+        <ul class="task-list">
+            {% for task in tasks %}
+                <li class="task-item">
+                    <span class="task-title {% if task.completed %}completed{% endif %}">
+                        {{ task.title }}
+                    </span>
+
+                    <div class="actions">
+                        <form method="post" action="{% url 'toggle_task' task.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="toggle-button">
+                                {% if task.completed %}Undo{% else %}Done{% endif %}
+                            </button>
+                        </form>
+
+                        <form method="post" action="{% url 'delete_task' task.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="delete-button">Delete</button>
+                        </form>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="empty">No tasks yet. Add your first one.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
