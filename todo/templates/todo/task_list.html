@@ -120,6 +120,13 @@
                     <div class="actions">
                         <form method="post" action="{% url 'toggle_task' task.id %}">
                             {% csrf_token %}
+                            <span>
+                                {% if task.is_active %}
+                                    <span class="status active">Active</span>
+                                {% else %}
+                                    <span class="status inactive">Inactive</span>
+                                {% endif %}
+                            </span>
                             <button type="submit" class="toggle-button">
                                 {% if task.completed %}Undo{% else %}Done{% endif %}
                             </button>

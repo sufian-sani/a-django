@@ -15,6 +15,7 @@ def task_list(request):
         form = TaskForm()
 
     tasks = Task.objects.all()
+    # breakpoint()
     return render(request, "todo/task_list.html", {"form": form, "tasks": tasks})
 
 
