@@ -15,12 +15,28 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
-from django.views.generic import RedirectView
+
+
+def api_root(_request):
+    return JsonResponse(
+        {
+            "message": "Todo REST API",
+            "endpoints": {
+                "admin": "/admin/",
+                "register": "/api/users/register/",
+                "token": "/api/users/token/",
+                "token_refresh": "/api/users/token/refresh/",
+                "profile": "/api/users/profile/",
+                "todos": "/api/todos/",
+            },
+        }
+    )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', RedirectView.as_view(url='/todo/', permanent=False)),
-    path('todo/', include('todo.urls')),
-    path('users/', include('users.urls')),
+    path('', api_root),
+    path('api/users/', include('users.urls')),
+    path('api/todos/', include('todo.urls')),
 ]
