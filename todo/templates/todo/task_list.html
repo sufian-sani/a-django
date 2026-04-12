@@ -102,7 +102,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>My Todo List</h1>
+        <div style="display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div>
+                <h1>My Todo List</h1>
+                <p style="margin-top: -8px; color: #6b7280;">Signed in as {{ request.user.username }}</p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <a href="{% url 'profile' %}" style="color: #2563eb; text-decoration: none;">Profile</a>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" style="background: transparent; color: #ef4444; padding: 0;">Logout</button>
+                </form>
+            </div>
+        </div>
 
         <form method="post" class="add-form">
             {% csrf_token %}
