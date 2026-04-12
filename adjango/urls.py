@@ -25,9 +25,9 @@ def api_root(_request):
             "message": "Todo REST API",
             "endpoints": {
                 "admin": "/admin/",
-                "register": "/api/users/register/",
-                "token": "/api/users/token/",
-                "token_refresh": "/api/users/token/refresh/",
+                "register": "/api/users/",
+                "login": "/api/users/login/",
+                "refresh": "/api/users/refresh/",
                 "profile": "/api/users/profile/",
                 "todos": "/api/todos/",
             },
