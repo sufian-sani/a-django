@@ -116,7 +116,7 @@
             </div>
         </div>
 
-        <form method="post" class="add-form">
+        <form method="post" action="{% url 'create_task' %}" class="add-form">
             {% csrf_token %}
             {{ form.title }}
             <button type="submit" class="add-button">Add</button>
