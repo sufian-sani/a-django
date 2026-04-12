@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            margin: 0;
+            padding: 40px 16px;
+            color: #1f2937;
+        }
+
+        .card {
+            max-width: 640px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        a, button {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        button {
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="row">
+            <h1>{{ request.user.username }}</h1>
+            <a href="{% url 'task_list' %}">Back to tasks</a>
+        </div>
+        <p>Email: {{ request.user.email|default:"No email set" }}</p>
+        <p>Staff: {{ request.user.is_staff|yesno:"Yes,No" }}</p>
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+</body>
+</html>
