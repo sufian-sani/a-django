@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import permission_required
 
 from .forms import TaskForm
 from .models import Task
@@ -23,6 +24,7 @@ def task_list(request):
 
 
 @login_required
+@permission_required("todo.add_task", raise_exception=True)
 @require_POST
 def toggle_task(request, task_id):
     task = get_object_or_404(Task, id=task_id, owner=request.user)
@@ -32,6 +34,7 @@ def toggle_task(request, task_id):
 
 
 @login_required
+@permission_required("todo.delete_task", raise_exception=True)
 @require_POST
 def delete_task(request, task_id):
     task = get_object_or_404(Task, id=task_id, owner=request.user)
