@@ -16,7 +16,7 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
-        if self.request.user.is_authenticated and self.request.user.is_staff:
+        if self.request.user.is_authenticated and (self.request.user.is_staff or getattr(self.request.user, 'staff', False)):
             return User.objects.all()
         return User.objects.none()
 
