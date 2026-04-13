@@ -50,6 +50,11 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
     can_delete_task = serializers.BooleanField(required=False)
     can_view_task = serializers.BooleanField(required=False)
 
+    can_add_note = serializers.BooleanField(required=False)
+    can_change_note = serializers.BooleanField(required=False)
+    can_delete_note = serializers.BooleanField(required=False)
+    can_view_note = serializers.BooleanField(required=False)
+
     class Meta:
         model = User
         fields = [
@@ -57,10 +62,15 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
             "can_change_task",
             "can_delete_task",
             "can_view_task",
+            "can_add_note",
+            "can_change_note",
+            "can_delete_note",
+            "can_view_note",
         ]
 
     def update(self, instance, validated_data):
         assign_model_permissions(instance, "task", validated_data)
+        assign_model_permissions(instance, "note", validated_data)
         return instance
     
 
@@ -70,6 +80,11 @@ class UserDetailSerializer(serializers.ModelSerializer):
     can_change_task = serializers.SerializerMethodField()
     can_delete_task = serializers.SerializerMethodField()
     can_view_task = serializers.SerializerMethodField()
+
+    can_add_note = serializers.SerializerMethodField()
+    can_change_note = serializers.SerializerMethodField()
+    can_delete_note = serializers.SerializerMethodField()
+    can_view_note = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -87,6 +102,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "can_change_task",
             "can_delete_task",
             "can_view_task",
+            "can_add_note",
+            "can_change_note",
+            "can_delete_note",
+            "can_view_note",
         ]
 
     def get_can_add_task(self, obj):
@@ -100,3 +119,15 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_can_view_task(self, obj):
         return user_has_model_permission(obj, "todo", "view", "task")
+    
+    def get_can_add_note(self, obj):
+        return user_has_model_permission(obj, "notes", "add", "note")
+    
+    def get_can_change_note(self, obj):
+        return user_has_model_permission(obj, "notes", "change", "note")
+    
+    def get_can_delete_note(self, obj):
+        return user_has_model_permission(obj, "notes", "delete", "note")
+    
+    def get_can_view_note(self, obj):
+        return user_has_model_permission(obj, "notes", "view", "note")
