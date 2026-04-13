@@ -26,6 +26,7 @@ def api_root(_request):
             "endpoints": {
                 "admin": "/admin/",
                 "register": "/api/users/",
+                "users_list": "/api/users/list/",
                 "login": "/api/users/login/",
                 "refresh": "/api/users/refresh/",
                 "profile": "/api/users/profile/",

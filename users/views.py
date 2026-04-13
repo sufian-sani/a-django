@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .permissions import IsStaffOrProfileStaff
 from .serializers import AssignUserPermissionSerializer, RegisterSerializer, UserDetailSerializer, UserSerializer
 
 
@@ -16,7 +17,7 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
 
     def get_queryset(self):
-        if self.request.user.is_authenticated and (self.request.user.is_staff or getattr(self.request.user, 'staff', False)):
+        if IsStaffOrProfileStaff().has_permission(self.request, self):
             return User.objects.all()
         return User.objects.none()
 
@@ -28,9 +29,9 @@ class UserViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
 
         if self.action == "assign_permissions":
-            return [permissions.IsAdminUser()]   # staff only
+            return [IsStaffOrProfileStaff()]
 
-        return [permissions.IsAdminUser()]
+        return [IsStaffOrProfileStaff()]
     
     def get_serializer_class(self):
         if self.action == "assign_permissions":
@@ -54,6 +55,12 @@ class UserViewSet(viewsets.ModelViewSet):
             "refresh": str(refresh),
             "access": str(access),
         }, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=False, methods=["get"], url_path="list")
+    def list_users(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = UserDetailSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["post"])
     def login(self, request):

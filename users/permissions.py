@@ -1,5 +1,5 @@
 from django.contrib.auth.models import Permission
-from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.permissions import BasePermission, DjangoModelPermissions
 
 
 class AuthenticatedReadDjangoModelPermissions(DjangoModelPermissions):
@@ -40,3 +40,16 @@ def set_user_model_permissions(user, app_label, model_name, permission_flags):
 
 def user_has_model_permission(user, app_label, action, model_name):
     return user.has_perm(model_permission_name(app_label, action, model_name))
+
+
+class IsStaffOrProfileStaff(BasePermission):
+    message = "You do not have permission to perform this action."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        profile = getattr(user, "profile", None)
+        profile_staff = getattr(profile, "staff", False)
+        return bool(user.is_staff or profile_staff)
