@@ -100,11 +100,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated])
     def profile(self, request):
-        return Response({
-            "id": request.user.id,
-            "username": request.user.username,
-            "email": request.user.email,
-        })
+        return Response(UserDetailSerializer(request.user).data)
     
 
     @action(detail=True, methods=["patch"], url_path="assign-permissions")

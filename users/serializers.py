@@ -4,12 +4,22 @@ from rest_framework import serializers
 from users.permission_utils import assign_model_permissions
 
 from .permissions import set_user_model_permissions, user_has_model_permission
+from .models import UserProfile
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ["id", "created_at", "updated_at"]
+        read_only_fields = fields
 
 
 class UserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
+
     class Meta:
         model = User
-        fields = ["id", "username", "email", "is_staff", "is_superuser"]
+        fields = ["id", "username", "email", "is_staff", "is_superuser", "profile"]
         read_only_fields = ["id", "is_staff", "is_superuser"]
 
 
@@ -55,6 +65,7 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
     
 
 class UserDetailSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(read_only=True)
     can_add_task = serializers.SerializerMethodField()
     can_change_task = serializers.SerializerMethodField()
     can_delete_task = serializers.SerializerMethodField()
@@ -71,6 +82,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "is_staff",
             "date_joined",
+            "profile",
             "can_add_task",
             "can_change_task",
             "can_delete_task",
