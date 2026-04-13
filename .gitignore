@@ -1,14 +1,60 @@
-.venv
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
 .venv/
 
-/__pycache__/
+# Django stuff:
+*.log
+*.pot
 *.pyc
 *.pyo
 *.pyd
-# Ignore all __pycache__ directories everywhere
-__pycache__/
-__pycache__/
-*.py[cod]
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
 
-*/__pycache__/
-**/__pycache__/
+# Migrations (optional, if you don’t want to track them)
+*/migrations/__pycache__/
+*/migrations/*.py
+
+# IDE / editor settings
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+*.env
+
+# Coverage / testing
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Node / frontend (if using React/Next.js with Django)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
