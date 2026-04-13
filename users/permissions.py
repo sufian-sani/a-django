@@ -3,12 +3,22 @@ from rest_framework.permissions import BasePermission, DjangoModelPermissions
 
 
 class AuthenticatedReadDjangoModelPermissions(DjangoModelPermissions):
-    read_actions = {"list", "retrieve"}
+    authenticated_only_actions = {"list"}
 
     def has_permission(self, request, view):
-        if getattr(view, "action", None) in self.read_actions:
+        if getattr(view, "action", None) in self.authenticated_only_actions:
             return bool(request.user and request.user.is_authenticated)
         return super().has_permission(request, view)
+
+    perms_map = {
+        "GET": ["%(app_label)s.view_%(model_name)s"],
+        "OPTIONS": [],
+        "HEAD": [],
+        "POST": ["%(app_label)s.add_%(model_name)s"],
+        "PUT": ["%(app_label)s.change_%(model_name)s"],
+        "PATCH": ["%(app_label)s.change_%(model_name)s"],
+        "DELETE": ["%(app_label)s.delete_%(model_name)s"],
+    }
 
 
 def model_permission_codename(action, model_name):
