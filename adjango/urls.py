@@ -31,6 +31,7 @@ def api_root(_request):
                 "refresh": "/api/users/refresh/",
                 "profile": "/api/users/profile/",
                 "todos": "/api/todos/",
+                "notes": "/api/notes/",
             },
         }
     )
@@ -40,4 +41,5 @@ urlpatterns = [
     path('', api_root),
     path('api/users/', include('users.urls')),
     path('api/todos/', include('todo.urls')),
+    path('api/notes/', include('notes.urls')),
 ]
