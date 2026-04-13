@@ -1,5 +1,6 @@
-from users.permissions import AuthenticatedReadDjangoModelPermissions
+from users.permissions import AppModelPermissions
 
 
-class TaskPermission(AuthenticatedReadDjangoModelPermissions):
-    pass
+class TaskPermission(AppModelPermissions):
+    app_label = "todo"
+    model_name = "task"

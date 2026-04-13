@@ -53,3 +53,39 @@ class IsStaffOrProfileStaff(BasePermission):
         profile = getattr(user, "profile", None)
         profile_staff = getattr(profile, "staff", False)
         return bool(user.is_staff or profile_staff)
+
+
+class AppModelPermissions(AuthenticatedReadDjangoModelPermissions):
+    app_label = None
+    model_name = None
+
+    def has_permission(self, request, view):
+        if self.app_label and self.model_name:
+            view.required_permission_app = self.app_label
+            view.required_permission_model = self.model_name
+        return super().has_permission(request, view)
+
+    def _queryset(self, view):
+        queryset = getattr(view, "queryset", None)
+        if queryset is not None:
+            return queryset
+
+        app_label = getattr(view, "required_permission_app", None) or self.app_label
+        model_name = getattr(view, "required_permission_model", None) or self.model_name
+        if not app_label or not model_name:
+            return super()._queryset(view)
+
+        meta = type("Meta", (), {"app_label": app_label, "model_name": model_name})
+        model = type("Model", (), {"_meta": meta()})
+        queryset_type = type("QuerySet", (), {"model": model()})
+        return queryset_type()
+
+
+def build_app_model_permission(app_label, model_name):
+    class GeneratedAppModelPermission(AppModelPermissions):
+        pass
+
+    GeneratedAppModelPermission.app_label = app_label
+    GeneratedAppModelPermission.model_name = model_name
+    GeneratedAppModelPermission.__name__ = f"{app_label.title()}{model_name.title()}Permission"
+    return GeneratedAppModelPermission

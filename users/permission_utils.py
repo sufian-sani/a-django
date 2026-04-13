@@ -2,6 +2,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 
 from .permission_registry import PERMISSION_REGISTRY
+from .permissions import build_app_model_permission
 
 
 def assign_model_permissions(user, config_key, validated_data):
@@ -36,3 +37,11 @@ def assign_model_permissions(user, config_key, validated_data):
             user.user_permissions.add(permission)
         else:
             user.user_permissions.remove(permission)
+
+
+def permission_class_from_registry(config_key):
+    config = PERMISSION_REGISTRY[config_key]
+    return build_app_model_permission(
+        app_label=config["app_label"],
+        model_name=config["model_name"],
+    )
