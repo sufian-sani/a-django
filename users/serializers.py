@@ -1,6 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from users.permission_utils import assign_model_permissions
+
 from .permissions import set_user_model_permissions, user_has_model_permission
 
 
@@ -48,18 +50,7 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
         ]
 
     def update(self, instance, validated_data):
-        set_user_model_permissions(
-            user=instance,
-            app_label="todo",
-            model_name="task",
-            permission_flags={
-                "add": validated_data.get("can_add_task", None),
-                "change": validated_data.get("can_change_task", None),
-                "delete": validated_data.get("can_delete_task", None),
-                "view": validated_data.get("can_view_task", None),
-            },
-        )
-
+        assign_model_permissions(instance, "task", validated_data)
         return instance
     
 
