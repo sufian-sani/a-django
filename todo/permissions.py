@@ -1,13 +1,10 @@
-from rest_framework.permissions import DjangoModelPermissions
+from rest_framework.permissions import DjangoModelPermissions, IsAuthenticated
 
+class TaskPermission(DjangoModelPermissions):
+    def has_permission(self, request, view):
+        # list/retrieve فقط login user
+        if view.action in ["list", "retrieve"]:
+            return bool(request.user and request.user.is_authenticated)
 
-class DjangoModelPermissionsWithView(DjangoModelPermissions):
-    perms_map = {
-        "GET": ["%(app_label)s.view_%(model_name)s"],
-        "OPTIONS": [],
-        "HEAD": [],
-        "POST": ["%(app_label)s.add_%(model_name)s"],
-        "PUT": ["%(app_label)s.change_%(model_name)s"],
-        "PATCH": ["%(app_label)s.change_%(model_name)s"],
-        "DELETE": ["%(app_label)s.delete_%(model_name)s"],
-    }
+        # create/update/delete -> use Django model permissions
+        return super().has_permission(request, view)
