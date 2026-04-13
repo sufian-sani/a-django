@@ -1,5 +1,7 @@
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import User
 from rest_framework import serializers
+
+from .permissions import set_user_model_permissions, user_has_model_permission
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,26 +48,17 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
         ]
 
     def update(self, instance, validated_data):
-        permission_map = {
-            "add_task": validated_data.get("can_add_task", None),
-            "change_task": validated_data.get("can_change_task", None),
-            "delete_task": validated_data.get("can_delete_task", None),
-            "view_task": validated_data.get("can_view_task", None),
-        }
-
-        for codename, allowed in permission_map.items():
-            if allowed is None:
-                continue
-
-            try:
-                permission = Permission.objects.get(codename=codename)
-            except Permission.DoesNotExist:
-                continue
-
-            if allowed:
-                instance.user_permissions.add(permission)
-            else:
-                instance.user_permissions.remove(permission)
+        set_user_model_permissions(
+            user=instance,
+            app_label="todo",
+            model_name="task",
+            permission_flags={
+                "add": validated_data.get("can_add_task", None),
+                "change": validated_data.get("can_change_task", None),
+                "delete": validated_data.get("can_delete_task", None),
+                "view": validated_data.get("can_view_task", None),
+            },
+        )
 
         return instance
     
@@ -94,13 +87,13 @@ class UserDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_can_add_task(self, obj):
-        return obj.has_perm("todo.add_task")
+        return user_has_model_permission(obj, "todo", "add", "task")
 
     def get_can_change_task(self, obj):
-        return obj.has_perm("todo.change_task")
+        return user_has_model_permission(obj, "todo", "change", "task")
 
     def get_can_delete_task(self, obj):
-        return obj.has_perm("todo.delete_task")
+        return user_has_model_permission(obj, "todo", "delete", "task")
 
     def get_can_view_task(self, obj):
-        return obj.has_perm("todo.view_task")
+        return user_has_model_permission(obj, "todo", "view", "task")
