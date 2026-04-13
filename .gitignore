@@ -5,5 +5,7 @@
 *.pyc
 *.pyo
 *.pyd
+# Ignore all __pycache__ directories everywhere
 __pycache__/
 */__pycache__/
+**/__pycache__/
