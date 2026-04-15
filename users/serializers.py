@@ -138,3 +138,48 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     def get_can_view_note(self, obj):
         return user_has_model_permission(obj, "notes", "view", "note")
+    
+
+# ----------group user
+from django.contrib.auth.models import Group, Permission
+from rest_framework import serializers
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    permissions = serializers.PrimaryKeyRelatedField(
+        queryset=Permission.objects.all(),
+        many=True,
+        required=False
+    )
+
+    class Meta:
+        model = Group
+        fields = ["id", "name", "permissions"]
+
+    def create(self, validated_data):
+        permissions = validated_data.pop("permissions", [])
+        group = Group.objects.create(**validated_data)
+        group.permissions.set(permissions)
+        return group
+
+    def update(self, instance, validated_data):
+        permissions = validated_data.pop("permissions", None)
+
+        # instance.name = validated_data.get("name", instance.name)
+        instance.save()
+
+        if permissions is not None:
+            instance.permissions.set(permissions)
+
+        return instance
+    
+
+# -----permission name
+from django.contrib.auth.models import Permission
+from rest_framework import serializers
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ["id", "name", "codename"]

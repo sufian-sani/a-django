@@ -133,3 +133,60 @@ class UserViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+    
+    @action(detail=True, methods=["post"], url_path="add-to-group", permission_classes=[IsStaffOrProfileStaff()])
+    def add_to_group(self, request):
+        user_ids = request.data.get("user_ids", [])
+        group_ids = request.data.get("groups", [])
+
+        if not user_ids:
+            return Response({"error": "user_ids is required"}, status=400)
+
+        if not group_ids:
+            return Response({"error": "groups is required"}, status=400)
+
+        users = User.objects.filter(id__in=user_ids)
+        groups = Group.objects.filter(id__in=group_ids)
+
+        for user in users:
+            user.groups.add(*groups)
+
+        return Response({
+            "message": "Users added to groups successfully"
+    }, status=status.HTTP_200_OK)
+
+
+# -----group api
+from django.contrib.auth.models import Group
+from rest_framework import viewsets, permissions
+from .serializers import GroupSerializer
+
+
+class GroupViewSet(viewsets.ModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [IsStaffOrProfileStaff]
+
+
+# -----permission name
+from django.contrib.auth.models import Permission
+from rest_framework import viewsets, permissions
+from django.apps import apps
+
+from .serializers import (
+    PermissionSerializer
+)
+
+
+
+class PermissionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Permission.objects.all()
+    serializer_class = PermissionSerializer
+    permission_classes = [IsStaffOrProfileStaff]
+
+    def get_queryset(self):
+        allowed_apps = ["todo", "users", "notes"]  # your apps only
+
+        return Permission.objects.filter(
+            content_type__app_label__in=allowed_apps
+        )
