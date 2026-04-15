@@ -1,5 +1,4 @@
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,7 +6,14 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .permissions import IsStaffOrProfileStaff
-from .serializers import AssignUserPermissionSerializer, RegisterSerializer, UserDetailSerializer, UserSerializer
+from .serializers import (
+    AssignUserPermissionSerializer,
+    RegisterSerializer,
+    UserDetailSerializer,
+    UserSerializer,
+)
+
+User = get_user_model()
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -32,12 +38,14 @@ class UserViewSet(viewsets.ModelViewSet):
             return [IsStaffOrProfileStaff()]
 
         return [IsStaffOrProfileStaff()]
-    
+
     def get_serializer_class(self):
         if self.action == "assign_permissions":
             return AssignUserPermissionSerializer
-        if self.action in {"retrieve", "list"}:
+        if self.action in {"retrieve", "list", "list_users", "profile"}:
             return UserDetailSerializer
+        if self.action == "login":
+            return UserSerializer
         return RegisterSerializer
 
     def create(self, request, *args, **kwargs):
@@ -45,16 +53,19 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
 
         headers = self.get_success_headers(serializer.data)
-        return Response({
-            "user": serializer.data,
-            "refresh": str(refresh),
-            "access": str(access),
-        }, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            {
+                "user": UserSerializer(user).data,
+                "refresh": str(refresh),
+                "access": str(access),
+            },
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
 
     @action(detail=False, methods=["get"], url_path="list")
     def list_users(self, request):
@@ -99,16 +110,11 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        return Response(
-            {
-                "access": str(token.access_token),
-            }
-        )
+        return Response({"access": str(token.access_token)})
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated])
     def profile(self, request):
         return Response(UserDetailSerializer(request.user).data)
-    
 
     @action(detail=True, methods=["patch"], url_path="assign-permissions")
     def assign_permissions(self, request, pk=None):
@@ -117,8 +123,11 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        return Response({
-            "message": "Permissions updated successfully.",
-            "user_id": user.id,
-            "username": user.username,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "message": "Permissions updated successfully.",
+                "user_id": user.id,
+                "username": user.username,
+            },
+            status=status.HTTP_200_OK,
+        )

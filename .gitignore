@@ -22,6 +22,8 @@ staticfiles/
 # Migrations (optional, if you don’t want to track them)
 */migrations/__pycache__/
 */migrations/*.py
+!users/migrations/__init__.py
+!users/migrations/*.py
 
 # IDE / editor settings
 .vscode/

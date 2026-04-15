@@ -60,9 +60,7 @@ class IsStaffOrProfileStaff(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        profile = getattr(user, "profile", None)
-        profile_staff = getattr(profile, "staff", False)
-        return bool(user.is_staff or profile_staff)
+        return bool(user.is_staff or getattr(user, "staff", False))
 
 
 class AppModelPermissions(AuthenticatedReadDjangoModelPermissions):
