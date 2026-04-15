@@ -25,19 +25,21 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if IsStaffOrProfileStaff().has_permission(self.request, self):
             return User.objects.all()
+        if self.request.user.is_authenticated:
+            return User.objects.filter(id=self.request.user.id)
         return User.objects.none()
 
     def get_permissions(self):
         if self.action in {"create", "login", "refresh"}:
             return [permissions.AllowAny()]
 
-        if self.action == "profile":
-            return [permissions.IsAuthenticated()]
-
-        if self.action == "assign_permissions":
+        if self.action in {"list_users", "assign_permissions"}:
             return [IsStaffOrProfileStaff()]
 
-        return [IsStaffOrProfileStaff()]
+        # if self.action == "assign_permissions":
+        #     return [IsStaffOrProfileStaff()]
+
+        return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
         if self.action == "assign_permissions":
