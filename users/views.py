@@ -134,7 +134,7 @@ class UserViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
     
-    @action(detail=True, methods=["post"], url_path="add-to-group", permission_classes=[IsStaffOrProfileStaff()])
+    @action(detail=False, methods=["post"], url_path="add-to-group", permission_classes=[IsStaffOrProfileStaff()])
     def add_to_group(self, request):
         user_ids = request.data.get("user_ids", [])
         group_ids = request.data.get("groups", [])
