@@ -145,6 +145,31 @@ class UserViewSet(viewsets.ModelViewSet):
             "message": "Permissions assigned successfully"
         }, status=status.HTTP_200_OK)
     
+    @action(detail=False, methods=["post"], url_path="manage-permissions", permission_classes=[IsStaffOrProfileStaff()])
+    def manage_permissions(self, request):
+        user_ids = request.data.get("user_ids", [])
+        add_ids = request.data.get("add_permissions", [])
+        remove_ids = request.data.get("remove_permissions", [])
+
+        if not user_ids:
+            return Response({"error": "user_ids required"}, status=400)
+
+        users = User.objects.filter(id__in=user_ids)
+
+        add_perms = Permission.objects.filter(id__in=add_ids)
+        remove_perms = Permission.objects.filter(id__in=remove_ids)
+
+        for user in users:
+            if add_perms:
+                user.user_permissions.add(*add_perms)
+
+            if remove_perms:
+                user.user_permissions.remove(*remove_perms)
+
+        return Response({
+            "message": "Permissions updated successfully"
+        })
+    
     @action(detail=False, methods=["post"], url_path="add-to-group", permission_classes=[IsStaffOrProfileStaff()])
     def add_to_group(self, request):
         user_ids = request.data.get("user_ids", [])
