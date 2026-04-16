@@ -90,6 +90,8 @@ class UserDetailSerializer(serializers.ModelSerializer):
     can_change_note = serializers.SerializerMethodField()
     can_delete_note = serializers.SerializerMethodField()
     can_view_note = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+
 
     class Meta:
         model = User
@@ -105,6 +107,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "date_joined",
             "created_at",
             "updated_at",
+            "groups",
             "can_add_task",
             "can_change_task",
             "can_delete_task",
@@ -139,6 +142,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
     def get_can_view_note(self, obj):
         return user_has_model_permission(obj, "notes", "view", "note")
     
+    def get_groups(self, obj):
+        return list(obj.groups.values("id", "name"))
+
 
 # ----------group user
 from django.contrib.auth.models import Group, Permission
