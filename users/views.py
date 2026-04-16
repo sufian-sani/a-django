@@ -118,21 +118,32 @@ class UserViewSet(viewsets.ModelViewSet):
     def profile(self, request):
         return Response(UserDetailSerializer(request.user).data)
 
-    @action(detail=True, methods=["patch"], url_path="assign-permissions")
+    @action(detail=False, methods=["post"], url_path="assign-permissions")
     def assign_permissions(self, request, pk=None):
-        user = self.get_object()
-        serializer = self.get_serializer(user, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user_ids = request.data.get("user_ids", [])
+        permission_ids = request.data.get("permissions", [])
 
-        return Response(
-            {
-                "message": "Permissions updated successfully.",
-                "user_id": user.id,
-                "username": user.username,
-            },
-            status=status.HTTP_200_OK,
-        )
+        if not user_ids:
+            return Response({"error": "user_ids required"}, status=400)
+
+        if not permission_ids:
+            return Response({"error": "permissions required"}, status=400)
+
+        users = User.objects.filter(id__in=user_ids)
+        permissions = Permission.objects.filter(id__in=permission_ids)
+
+        if not users.exists():
+            return Response({"error": "No valid users found"}, status=404)
+
+        if not permissions.exists():
+            return Response({"error": "No valid permissions found"}, status=404)
+
+        for user in users:
+            user.user_permissions.add(*permissions)
+
+        return Response({
+            "message": "Permissions assigned successfully"
+        }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=["post"], url_path="add-to-group", permission_classes=[IsStaffOrProfileStaff()])
     def add_to_group(self, request):
