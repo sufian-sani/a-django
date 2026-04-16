@@ -21,35 +21,35 @@ class AuthenticatedReadDjangoModelPermissions(DjangoModelPermissions):
     }
 
 
-def model_permission_codename(action, model_name):
-    return f"{action}_{model_name.lower()}"
+# def model_permission_codename(action, model_name):
+#     return f"{action}_{model_name.lower()}"
 
 
-def model_permission_name(app_label, action, model_name):
-    return f"{app_label}.{model_permission_codename(action, model_name)}"
+# def model_permission_name(app_label, action, model_name):
+#     return f"{app_label}.{model_permission_codename(action, model_name)}"
 
 
-def set_user_model_permissions(user, app_label, model_name, permission_flags):
-    for action, allowed in permission_flags.items():
-        if allowed is None:
-            continue
-        codename = model_permission_codename(action, model_name)
-        try:
-            permission = Permission.objects.get(
-                content_type__app_label=app_label,
-                codename=codename,
-            )
-        except Permission.DoesNotExist:
-            continue
+# def set_user_model_permissions(user, app_label, model_name, permission_flags):
+#     for action, allowed in permission_flags.items():
+#         if allowed is None:
+#             continue
+#         codename = model_permission_codename(action, model_name)
+#         try:
+#             permission = Permission.objects.get(
+#                 content_type__app_label=app_label,
+#                 codename=codename,
+#             )
+#         except Permission.DoesNotExist:
+#             continue
 
-        if allowed:
-            user.user_permissions.add(permission)
-        else:
-            user.user_permissions.remove(permission)
+#         if allowed:
+#             user.user_permissions.add(permission)
+#         else:
+#             user.user_permissions.remove(permission)
 
 
-def user_has_model_permission(user, app_label, action, model_name):
-    return user.has_perm(model_permission_name(app_label, action, model_name))
+# def user_has_model_permission(user, app_label, action, model_name):
+#     return user.has_perm(model_permission_name(app_label, action, model_name))
 
 
 class IsStaffOrProfileStaff(BasePermission):
@@ -89,11 +89,11 @@ class AppModelPermissions(AuthenticatedReadDjangoModelPermissions):
         return queryset_type()
 
 
-def build_app_model_permission(app_label, model_name):
-    class GeneratedAppModelPermission(AppModelPermissions):
-        pass
+# def build_app_model_permission(app_label, model_name):
+#     class GeneratedAppModelPermission(AppModelPermissions):
+#         pass
 
-    GeneratedAppModelPermission.app_label = app_label
-    GeneratedAppModelPermission.model_name = model_name
-    GeneratedAppModelPermission.__name__ = f"{app_label.title()}{model_name.title()}Permission"
-    return GeneratedAppModelPermission
+#     GeneratedAppModelPermission.app_label = app_label
+#     GeneratedAppModelPermission.model_name = model_name
+#     GeneratedAppModelPermission.__name__ = f"{app_label.title()}{model_name.title()}Permission"
+#     return GeneratedAppModelPermission

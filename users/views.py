@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from .permissions import IsStaffOrProfileStaff
 from .serializers import (
-    AssignUserPermissionSerializer,
+    # AssignUserPermissionSerializer,
     RegisterSerializer,
     UserDetailSerializer,
     UserSerializer,
@@ -42,8 +42,8 @@ class UserViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
-        if self.action == "assign_permissions":
-            return AssignUserPermissionSerializer
+        # if self.action == "assign_permissions":
+        #     return AssignUserPermissionSerializer
         if self.action in {"retrieve", "list", "list_users", "profile"}:
             return UserDetailSerializer
         if self.action == "login":

@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from users.permission_utils import assign_model_permissions
+# from users.permission_utils import assign_model_permissions
 
-from .permissions import user_has_model_permission
+# from .permissions import user_has_model_permission
 
 User = get_user_model()
 
@@ -52,33 +52,33 @@ class RegisterSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
-class AssignUserPermissionSerializer(serializers.ModelSerializer):
-    can_add_task = serializers.BooleanField(required=False)
-    can_change_task = serializers.BooleanField(required=False)
-    can_delete_task = serializers.BooleanField(required=False)
-    can_view_task = serializers.BooleanField(required=False)
-    can_add_note = serializers.BooleanField(required=False)
-    can_change_note = serializers.BooleanField(required=False)
-    can_delete_note = serializers.BooleanField(required=False)
-    can_view_note = serializers.BooleanField(required=False)
+# class AssignUserPermissionSerializer(serializers.ModelSerializer):
+#     can_add_task = serializers.BooleanField(required=False)
+#     can_change_task = serializers.BooleanField(required=False)
+#     can_delete_task = serializers.BooleanField(required=False)
+#     can_view_task = serializers.BooleanField(required=False)
+#     can_add_note = serializers.BooleanField(required=False)
+#     can_change_note = serializers.BooleanField(required=False)
+#     can_delete_note = serializers.BooleanField(required=False)
+#     can_view_note = serializers.BooleanField(required=False)
 
-    class Meta:
-        model = User
-        fields = [
-            "can_add_task",
-            "can_change_task",
-            "can_delete_task",
-            "can_view_task",
-            "can_add_note",
-            "can_change_note",
-            "can_delete_note",
-            "can_view_note",
-        ]
+#     class Meta:
+#         model = User
+#         fields = [
+#             "can_add_task",
+#             "can_change_task",
+#             "can_delete_task",
+#             "can_view_task",
+#             "can_add_note",
+#             "can_change_note",
+#             "can_delete_note",
+#             "can_view_note",
+#         ]
 
-    def update(self, instance, validated_data):
-        assign_model_permissions(instance, "task", validated_data)
-        assign_model_permissions(instance, "note", validated_data)
-        return instance
+#     def update(self, instance, validated_data):
+#         assign_model_permissions(instance, "task", validated_data)
+#         assign_model_permissions(instance, "note", validated_data)
+#         return instance
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
