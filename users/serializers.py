@@ -91,6 +91,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
     can_delete_note = serializers.SerializerMethodField()
     can_view_note = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
 
 
     class Meta:
@@ -108,6 +109,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "groups",
+            "permissions",
             "can_add_task",
             "can_change_task",
             "can_delete_task",
@@ -144,6 +146,9 @@ class UserDetailSerializer(serializers.ModelSerializer):
     
     def get_groups(self, obj):
         return list(obj.groups.values("id", "name"))
+    
+    def get_permissions(self, obj):
+        return list(obj.get_all_permissions())
 
 
 # ----------group user
