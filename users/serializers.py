@@ -148,7 +148,21 @@ class UserDetailSerializer(serializers.ModelSerializer):
         return list(obj.groups.values("id", "name"))
     
     def get_permissions(self, obj):
-        return list(obj.get_all_permissions())
+        perms = obj.get_all_permissions()  # set of "app.codename"
+
+        # split codename
+        codenames = [p.split(".")[1] for p in perms]
+
+        permissions = Permission.objects.filter(codename__in=codenames)
+
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "codename": p.codename,
+            }
+            for p in permissions
+        ]
 
 
 # ----------group user
@@ -177,6 +191,9 @@ class GroupSerializer(serializers.ModelSerializer):
         permissions = validated_data.pop("permissions", None)
 
         # instance.name = validated_data.get("name", instance.name)
+        if "name" in validated_data:
+            instance.name = validated_data["name"]
+            
         instance.save()
 
         if permissions is not None:
