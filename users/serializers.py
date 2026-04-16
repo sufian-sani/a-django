@@ -82,14 +82,14 @@ class AssignUserPermissionSerializer(serializers.ModelSerializer):
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    can_add_task = serializers.SerializerMethodField()
-    can_change_task = serializers.SerializerMethodField()
-    can_delete_task = serializers.SerializerMethodField()
-    can_view_task = serializers.SerializerMethodField()
-    can_add_note = serializers.SerializerMethodField()
-    can_change_note = serializers.SerializerMethodField()
-    can_delete_note = serializers.SerializerMethodField()
-    can_view_note = serializers.SerializerMethodField()
+    # can_add_task = serializers.SerializerMethodField()
+    # can_change_task = serializers.SerializerMethodField()
+    # can_delete_task = serializers.SerializerMethodField()
+    # can_view_task = serializers.SerializerMethodField()
+    # can_add_note = serializers.SerializerMethodField()
+    # can_change_note = serializers.SerializerMethodField()
+    # can_delete_note = serializers.SerializerMethodField()
+    # can_view_note = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
 
@@ -110,39 +110,39 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "groups",
             "permissions",
-            "can_add_task",
-            "can_change_task",
-            "can_delete_task",
-            "can_view_task",
-            "can_add_note",
-            "can_change_note",
-            "can_delete_note",
-            "can_view_note",
+            # "can_add_task",
+            # "can_change_task",
+            # "can_delete_task",
+            # "can_view_task",
+            # "can_add_note",
+            # "can_change_note",
+            # "can_delete_note",
+            # "can_view_note",
         ]
 
-    def get_can_add_task(self, obj):
-        return user_has_model_permission(obj, "todo", "add", "task")
+    # def get_can_add_task(self, obj):
+    #     return user_has_model_permission(obj, "todo", "add", "task")
 
-    def get_can_change_task(self, obj):
-        return user_has_model_permission(obj, "todo", "change", "task")
+    # def get_can_change_task(self, obj):
+    #     return user_has_model_permission(obj, "todo", "change", "task")
 
-    def get_can_delete_task(self, obj):
-        return user_has_model_permission(obj, "todo", "delete", "task")
+    # def get_can_delete_task(self, obj):
+    #     return user_has_model_permission(obj, "todo", "delete", "task")
 
-    def get_can_view_task(self, obj):
-        return user_has_model_permission(obj, "todo", "view", "task")
+    # def get_can_view_task(self, obj):
+    #     return user_has_model_permission(obj, "todo", "view", "task")
 
-    def get_can_add_note(self, obj):
-        return user_has_model_permission(obj, "notes", "add", "note")
+    # def get_can_add_note(self, obj):
+    #     return user_has_model_permission(obj, "notes", "add", "note")
 
-    def get_can_change_note(self, obj):
-        return user_has_model_permission(obj, "notes", "change", "note")
+    # def get_can_change_note(self, obj):
+    #     return user_has_model_permission(obj, "notes", "change", "note")
 
-    def get_can_delete_note(self, obj):
-        return user_has_model_permission(obj, "notes", "delete", "note")
+    # def get_can_delete_note(self, obj):
+    #     return user_has_model_permission(obj, "notes", "delete", "note")
 
-    def get_can_view_note(self, obj):
-        return user_has_model_permission(obj, "notes", "view", "note")
+    # def get_can_view_note(self, obj):
+    #     return user_has_model_permission(obj, "notes", "view", "note")
     
     def get_groups(self, obj):
         return list(obj.groups.values("id", "name"))
@@ -193,7 +193,7 @@ class GroupSerializer(serializers.ModelSerializer):
         # instance.name = validated_data.get("name", instance.name)
         if "name" in validated_data:
             instance.name = validated_data["name"]
-            
+
         instance.save()
 
         if permissions is not None:
