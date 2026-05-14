@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'todo',
     'notes',
     'users',
+    'pos',
 ]
 
 MIDDLEWARE = [
