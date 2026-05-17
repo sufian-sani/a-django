@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'notes',
     'users',
     'pos',
+    'mydb',
 ]
 
 MIDDLEWARE = [
