@@ -162,6 +162,22 @@
             padding-top: 0.5rem;
             border-top: 1px dashed rgba(51, 65, 85, 0.8);
         }
+
+        .btn-deliver {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .btn-deliver:hover {
+            background: var(--accent-hover);
+        }
     </style>
 </head>
 <body>
@@ -172,19 +188,24 @@
             Back to Orders
         </a>
 
-        <div style="margin-top: 2rem;">
-            <h1>Order #{{ order.id }}</h1>
-            <div class="order-meta">
-                <span>{{ order.created_at|date:"F j, Y, g:i a" }}</span>
-                <span>&bull;</span>
-                <span>{{ items|length }} items</span>
-                <span>&bull;</span>
-                {% if order.status|lower == 'pending' %}
-                <span class="status-badge status-pending">{{ order.status }}</span>
-                {% else %}
-                <span class="status-badge status-completed">{{ order.status }}</span>
-                {% endif %}
+        <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1>Order #{{ order.id }}</h1>
+                <div class="order-meta">
+                    <span>{{ order.created_at|date:"F j, Y, g:i a" }}</span>
+                    <span>&bull;</span>
+                    <span>{{ items|length }} items</span>
+                    <span>&bull;</span>
+                    {% if order.status|lower == 'pending' %}
+                    <span class="status-badge status-pending" id="status-badge">{{ order.status }}</span>
+                    {% else %}
+                    <span class="status-badge status-completed" id="status-badge">{{ order.status }}</span>
+                    {% endif %}
+                </div>
             </div>
+            {% if order.status|lower == 'pending' %}
+            <button class="btn-deliver" id="deliver-btn" onclick="markDelivered({{ order.id }})">Mark as Delivered</button>
+            {% endif %}
         </div>
 
         <div class="card">
@@ -226,5 +247,55 @@
         </div>
     </div>
 
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async function markDelivered(orderId) {
+            const btn = document.getElementById('deliver-btn');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch(`/pos/orders/${orderId}/complete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+
+                if (response.ok) {
+                    // Update badge visually
+                    const badge = document.getElementById('status-badge');
+                    badge.className = 'status-badge status-completed';
+                    badge.textContent = 'Completed';
+                    
+                    // Remove button
+                    btn.remove();
+                } else {
+                    alert('Failed to mark order as delivered.');
+                    btn.disabled = false;
+                    btn.textContent = 'Mark as Delivered';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred.');
+                btn.disabled = false;
+                btn.textContent = 'Mark as Delivered';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -35,6 +35,15 @@ def order_detail(request, order_id):
     return render(request, 'pos/order_detail.html', context)
 
 @ensure_csrf_cookie
+def mark_order_completed(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id)
+        order.status = 'Completed'
+        order.save()
+        return JsonResponse({"message": "Order marked as completed", "status": order.status})
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+@ensure_csrf_cookie
 def create_order(request):
     if request.method == 'GET':
         products = Product.objects.all()
