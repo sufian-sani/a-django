@@ -43,6 +43,22 @@ def mark_order_completed(request, order_id):
         return JsonResponse({"message": "Order marked as completed", "status": order.status})
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
+def order_invoice(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    items = order.items.select_related('product').all()
+    
+    order_total = 0
+    for item in items:
+        item.subtotal = item.quantity * item.price_at_time_of_order
+        order_total += item.subtotal
+        
+    context = {
+        'order': order,
+        'items': items,
+        'order_total': order_total
+    }
+    return render(request, 'pos/invoice.html', context)
+
 @ensure_csrf_cookie
 def create_order(request):
     if request.method == 'GET':

@@ -178,6 +178,26 @@
         .btn-deliver:hover {
             background: var(--accent-hover);
         }
+
+        .btn-invoice {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .btn-invoice:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -203,9 +223,16 @@
                     {% endif %}
                 </div>
             </div>
-            {% if order.status|lower == 'pending' %}
-            <button class="btn-deliver" id="deliver-btn" onclick="markDelivered({{ order.id }})">Mark as Delivered</button>
-            {% endif %}
+            <div id="action-container">
+                {% if order.status|lower == 'pending' %}
+                <button class="btn-deliver" id="deliver-btn" onclick="markDelivered({{ order.id }})">Mark as Delivered</button>
+                {% else %}
+                <a href="{% url 'order_invoice' order.id %}" target="_blank" class="btn-invoice">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Print Invoice
+                </a>
+                {% endif %}
+            </div>
         </div>
 
         <div class="card">
@@ -282,8 +309,14 @@
                     badge.className = 'status-badge status-completed';
                     badge.textContent = 'Completed';
                     
-                    // Remove button
-                    btn.remove();
+                    // Replace button with Invoice button
+                    const actionContainer = document.getElementById('action-container');
+                    actionContainer.innerHTML = `
+                        <a href="/pos/orders/${orderId}/invoice/" target="_blank" class="btn-invoice">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            Print Invoice
+                        </a>
+                    `;
                 } else {
                     alert('Failed to mark order as delivered.');
                     btn.disabled = false;

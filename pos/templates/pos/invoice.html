@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice #{{ order.id }}</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333;
+            background: #fff;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .invoice-box {
+            max-width: 800px;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #eee;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+            font-size: 16px;
+            line-height: 24px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+        }
+
+        .header-title {
+            font-size: 45px;
+            line-height: 45px;
+            color: #333;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .header-details {
+            text-align: right;
+            color: #555;
+        }
+
+        table {
+            width: 100%;
+            line-height: inherit;
+            text-align: left;
+            border-collapse: collapse;
+        }
+
+        table th {
+            padding: 10px;
+            background: #eee;
+            border-bottom: 2px solid #ddd;
+            font-weight: bold;
+        }
+
+        table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        table th.right, table td.right {
+            text-align: right;
+        }
+
+        table th.center, table td.center {
+            text-align: center;
+        }
+
+        .total-row td {
+            border-top: 2px solid #ddd;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+        }
+
+        @media print {
+            body { padding: 0; }
+            .invoice-box { 
+                box-shadow: none; 
+                border: none; 
+                margin: 0; 
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+
+    <div class="invoice-box">
+        <div class="header">
+            <div>
+                <h1 class="header-title">INVOICE</h1>
+                <p>Order #{{ order.id }}</p>
+            </div>
+            <div class="header-details">
+                <p><strong>Date:</strong> {{ order.created_at|date:"F j, Y" }}<br>
+                <strong>Status:</strong> {{ order.status }}</p>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item Description</th>
+                    <th class="center">Quantity</th>
+                    <th class="right">Unit Price</th>
+                    <th class="right">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td class="center">{{ item.quantity }}</td>
+                    <td class="right">${{ item.price_at_time_of_order }}</td>
+                    <td class="right">${{ item.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                    <td colspan="3" class="right">Grand Total:</td>
+                    <td class="right">${{ order_total|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Thank you for your business!</p>
+        </div>
+    </div>
+
+</body>
+</html>
