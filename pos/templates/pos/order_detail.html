@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order #{{ order.id }} Details</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .btn-back {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .btn-back:hover {
+            color: var(--text-main);
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .order-meta {
+            color: var(--text-muted);
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .items-table th {
+            text-align: left;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+        }
+
+        .items-table td {
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        }
+
+        .items-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .item-desc {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .price-col {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .summary-section {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.75rem 2rem;
+            font-size: 1.1rem;
+        }
+
+        .summary-grid div:nth-child(even) {
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .grand-total-row {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed rgba(51, 65, 85, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="{% url 'order_list' %}" class="btn-back">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Back to Orders
+        </a>
+
+        <div style="margin-top: 2rem;">
+            <h1>Order #{{ order.id }}</h1>
+            <div class="order-meta">
+                <span>{{ order.created_at|date:"F j, Y, g:i a" }}</span>
+                <span>&bull;</span>
+                <span>{{ items|length }} items</span>
+                <span>&bull;</span>
+                {% if order.status|lower == 'pending' %}
+                <span class="status-badge status-pending">{{ order.status }}</span>
+                {% else %}
+                <span class="status-badge status-completed">{{ order.status }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th style="text-align: center;">Qty</th>
+                        <th class="price-col">Price</th>
+                        <th class="price-col">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <div class="item-name">{{ item.product.name }}</div>
+                            {% if item.product.description %}
+                            <div class="item-desc">{{ item.product.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">{{ item.quantity }}</td>
+                        <td class="price-col">${{ item.price_at_time_of_order }}</td>
+                        <td class="price-col" style="color: var(--accent); font-weight: 600;">${{ item.subtotal|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div class="summary-section">
+                <div class="summary-grid">
+                    <div>Subtotal</div>
+                    <div>${{ order_total|floatformat:2 }}</div>
+                    
+                    <div class="grand-total-row">Total Amount</div>
+                    <div class="grand-total-row">${{ order_total|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,5 +1,5 @@
 import json
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
@@ -16,6 +16,23 @@ def order_list(request):
         'orders': orders
     }
     return render(request, 'pos/order_list.html', context)
+
+def order_detail(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    items = order.items.select_related('product').all()
+    
+    # Calculate the subtotal for each item and the total for the order
+    order_total = 0
+    for item in items:
+        item.subtotal = item.quantity * item.price_at_time_of_order
+        order_total += item.subtotal
+        
+    context = {
+        'order': order,
+        'items': items,
+        'order_total': order_total
+    }
+    return render(request, 'pos/order_detail.html', context)
 
 @ensure_csrf_cookie
 def create_order(request):
