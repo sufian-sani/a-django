@@ -225,7 +225,11 @@
             </div>
             <div id="action-container">
                 {% if order.status|lower == 'pending' %}
-                <button class="btn-deliver" id="deliver-btn" onclick="markDelivered({{ order.id }})">Mark as Delivered</button>
+                {% if order.status|lower == 'pending' %}
+        <a href="{% url 'order_payment' order.id %}" class="btn-deliver">Mark as Delivered</a>
+        {% else %}
+        <a href="{% url 'order_invoice' order.id %}" target="_blank" class="btn-invoice">View Invoice</a>
+        {% endif %}
                 {% else %}
                 <a href="{% url 'order_invoice' order.id %}" target="_blank" class="btn-invoice">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>

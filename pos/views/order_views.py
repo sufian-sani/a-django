@@ -1,9 +1,8 @@
 import json
-from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
+from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
-from django.db.models import Sum, F
 from django.db.models import Sum, F
 from pos.models import Product, Order, OrderItem, Invoice
 
@@ -75,6 +74,36 @@ def order_invoice(request, order_id):
     return render(request, 'pos/invoice.html', context)
 
 @ensure_csrf_cookie
+def order_payment(request, order_id):
+    """Render a simple payment page and process payment.
+    On GET: show total and a Pay button.
+    On POST: mark order as completed, create invoice, then redirect to invoice view.
+    """
+    order = get_object_or_404(Order, id=order_id)
+    items = order.items.select_related('product').all()
+    # calculate totals
+    order_total = sum(item.quantity * item.price_at_time_of_order for item in items)
+    if request.method == 'POST':
+        # Here you would integrate a real payment gateway.
+        # For this demo we just assume payment succeeded.
+        # Mark the order as completed
+        order.status = 'Completed'
+        order.save()
+        # Create Invoice (if not exists)
+        invoice, created = Invoice.objects.get_or_create(
+            order=order,
+            defaults={'invoice_number': f'INV-{order.id}'}
+        )
+        # Redirect to printable invoice page
+        return redirect('order_invoice', order_id=order.id)
+    else:
+        context = {
+            'order': order,
+            'items': items,
+            'order_total': order_total,
+        }
+        return render(request, 'pos/payment.html', context)
+
 def create_order(request):
     if request.method == 'GET':
         products = Product.objects.all()
@@ -86,7 +115,7 @@ def create_order(request):
             'products_json': json.dumps(products_data)
         }
         return render(request, 'pos/create_order.html', context)
-        
+    
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -94,7 +123,7 @@ def create_order(request):
             
             if not items:
                 return JsonResponse({"error": "No items in order"}, status=400)
-                
+            
             with transaction.atomic():
                 # Create Order
                 order = Order.objects.create(status='Pending')
@@ -106,21 +135,20 @@ def create_order(request):
                     
                     if quantity <= 0:
                         raise ValueError(f"Invalid quantity for {product.name}")
-                        
+                    
                     OrderItem.objects.create(
                         order=order,
                         product=product,
                         quantity=quantity,
                         price_at_time_of_order=product.price
                     )
-                    
+                
             return JsonResponse({"message": "Order created successfully!", "order_id": order.id}, status=201)
-            
         except Product.DoesNotExist:
             return JsonResponse({"error": "Product not found"}, status=404)
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-            
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+    else:
+        return JsonResponse({"error": "Method not allowed"}, status=405)
