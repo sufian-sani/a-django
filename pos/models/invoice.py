@@ -6,5 +6,10 @@ class Invoice(models.Model):
     invoice_number = models.CharField(max_length=50, unique=True)
     issued_at = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def items(self):
+        """Return OrderItems associated with this invoice via its order."""
+        return self.order.items.all()
+
     def __str__(self):
         return self.invoice_number
