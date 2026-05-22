@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice #{{ order.id }}</title>
+    <title>Invoice {{ invoice.invoice_number }}</title>
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -101,11 +101,12 @@
         <div class="header">
             <div>
                 <h1 class="header-title">INVOICE</h1>
-                <p>Order #{{ order.id }}</p>
+                <p>Invoice #: {{ invoice.invoice_number }}<br>
+                Reference Order #: {{ order.id }}</p>
             </div>
             <div class="header-details">
-                <p><strong>Date:</strong> {{ order.created_at|date:"F j, Y" }}<br>
-                <strong>Status:</strong> {{ order.status }}</p>
+                <p><strong>Issued At:</strong> {{ invoice.issued_at|date:"F j, Y, g:i a" }}<br>
+                <strong>Order Status:</strong> {{ order.status }}</p>
             </div>
         </div>
 

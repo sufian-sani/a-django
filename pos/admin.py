@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Order, OrderItem
+from .models import Product, Order, OrderItem, Invoice
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -19,3 +19,8 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('product', 'order', 'quantity', 'price_at_time_of_order')
+
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    list_display = ('invoice_number', 'order', 'issued_at')
+    search_fields = ('invoice_number',)

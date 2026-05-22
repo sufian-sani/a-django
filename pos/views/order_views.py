@@ -4,7 +4,8 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Sum, F
-from pos.models import Product, Order, OrderItem
+from django.db.models import Sum, F
+from pos.models import Product, Order, OrderItem, Invoice
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
@@ -40,12 +41,25 @@ def mark_order_completed(request, order_id):
         order = get_object_or_404(Order, id=order_id)
         order.status = 'Completed'
         order.save()
+        
+        # Create Invoice
+        invoice, created = Invoice.objects.get_or_create(
+            order=order,
+            defaults={'invoice_number': f'INV-{order.id}'}
+        )
+        
         return JsonResponse({"message": "Order marked as completed", "status": order.status})
     return JsonResponse({"error": "Method not allowed"}, status=405)
 
 def order_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     items = order.items.select_related('product').all()
+    
+    # Ensure invoice exists (for any old completed orders)
+    invoice, created = Invoice.objects.get_or_create(
+        order=order,
+        defaults={'invoice_number': f'INV-{order.id}'}
+    )
     
     order_total = 0
     for item in items:
@@ -54,6 +68,7 @@ def order_invoice(request, order_id):
         
     context = {
         'order': order,
+        'invoice': invoice,
         'items': items,
         'order_total': order_total
     }
