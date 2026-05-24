@@ -115,7 +115,7 @@ def order_payment(request, order_id):
             'order': order,
             'items': items,
             'order_total': order_total,
-            'payment_methods': Order.PAYMENT_METHOD_CHOICES,
+            'payment_methods': [('Cash', 'Cash'), ('Card', 'Card')],
         }
         return render(request, 'pos/payment.html', context)
 
