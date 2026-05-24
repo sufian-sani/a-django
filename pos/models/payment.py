@@ -9,9 +9,6 @@ class Payment(models.Model):
     METHOD_CHOICES = (
         ('Cash', 'Cash'),
         ('Card', 'Card'),
-        ('QR', 'QR'),
-        ('Transfer', 'Transfer'),
-        ('Other', 'Other'),
     )
     method = models.CharField(max_length=20, choices=METHOD_CHOICES)
     reference = models.CharField(max_length=100, blank=True, null=True)

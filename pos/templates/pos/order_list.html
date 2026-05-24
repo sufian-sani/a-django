@@ -27,7 +27,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1300px;
             margin: 0 auto;
         }
 
@@ -176,8 +176,10 @@
                     <tr>
                         <th>Order ID</th>
                         <th>Date</th>
+                        <th>Customer</th>
                         <th>Items</th>
                         <th>Total Amount</th>
+                        <th>Payment Method</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -187,8 +189,16 @@
                     <tr>
                         <td style="font-weight: 600;">#{{ order.id }}</td>
                         <td style="color: var(--text-muted);">{{ order.created_at|date:"M d, Y h:i A" }}</td>
+                        <td style="font-weight: 500;">{{ order.customer.name|default:"—" }}</td>
                         <td>{{ order.items.count }} items</td>
                         <td class="order-total">${{ order.total_price|default:"0.00"|floatformat:2 }}</td>
+                        <td>
+                            {% if order.payment_method %}
+                            <span style="font-weight: 500;">{{ order.payment_method }}</span>
+                            {% else %}
+                            <span style="color: var(--text-muted);">—</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if order.status|lower == 'pending' %}
                             <span class="status-badge status-pending">{{ order.status }}</span>

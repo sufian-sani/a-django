@@ -271,6 +271,16 @@
                     <div>Subtotal</div>
                     <div>${{ order_total|floatformat:2 }}</div>
                     
+                    {% if order.customer %}
+                    <div>Customer</div>
+                    <div>{{ order.customer.name }}</div>
+                    {% endif %}
+                    
+                    {% if order.payment_method %}
+                    <div>Payment Method</div>
+                    <div>{{ order.payment_method }}</div>
+                    {% endif %}
+                    
                     <div class="grand-total-row">Total Amount</div>
                     <div class="grand-total-row">${{ order_total|floatformat:2 }}</div>
                 </div>

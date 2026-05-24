@@ -8,7 +8,7 @@ from pos.models import Product, Order, OrderItem, Invoice, Customer, Payment
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
-    orders = Order.objects.annotate(
+    orders = Order.objects.select_related('customer').annotate(
         total_price=Sum(F('items__quantity') * F('items__price_at_time_of_order'))
     ).order_by('-created_at')
     
@@ -87,15 +87,19 @@ def order_payment(request, order_id):
         # Here you would integrate a real payment gateway.
         # For this demo we just assume payment succeeded.
         # Mark the order as completed
+        # Determine payment method from request (default to Cash) and capitalize to match choices (Card, Cash)
+        payment_method = request.POST.get('payment_method', 'Cash').capitalize()
+        if payment_method not in dict(Order.PAYMENT_METHOD_CHOICES):
+            payment_method = 'Cash'
+            
         order.status = 'Completed'
+        order.payment_method = payment_method
         order.save()
         # Create or get Invoice
         invoice, created = Invoice.objects.get_or_create(
             order=order,
             defaults={'invoice_number': f'INV-{order.id}', 'status': 'Unpaid'}
         )
-        # Determine payment method from request (default to Cash)
-        payment_method = request.POST.get('payment_method', 'Cash')
         # Create Payment record using selected method
         Payment.objects.create(
             invoice=invoice,
@@ -111,6 +115,7 @@ def order_payment(request, order_id):
             'order': order,
             'items': items,
             'order_total': order_total,
+            'payment_methods': Order.PAYMENT_METHOD_CHOICES,
         }
         return render(request, 'pos/payment.html', context)
 
