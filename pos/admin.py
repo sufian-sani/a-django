@@ -24,8 +24,9 @@ class OrderItemAdmin(admin.ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ('invoice_number', 'order', 'issued_at')
+    list_display = ('invoice_number', 'order', 'status', 'is_split', 'issued_at')
     search_fields = ('invoice_number',)
+    list_filter = ('status', 'is_split', 'issued_at')
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):

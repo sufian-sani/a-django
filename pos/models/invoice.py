@@ -15,6 +15,7 @@ class Invoice(models.Model):
         ),
         help_text='Paid | Unpaid | Overdue | Cancelled',
     )
+    is_split = models.BooleanField(default=False, help_text='Whether this invoice is a split payment')
     issued_at = models.DateTimeField(auto_now_add=True)
 
     @property
