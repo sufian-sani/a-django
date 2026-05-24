@@ -4,5 +4,6 @@ from .product import Product
 from .order import Order
 from .order_item import OrderItem
 from .invoice import Invoice
+from .customer import Customer
 
-__all__ = ['Product', 'Order', 'OrderItem', 'Invoice']
+__all__ = ['Product', 'Order', 'OrderItem', 'Invoice', 'Customer']
