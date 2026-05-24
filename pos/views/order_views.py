@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Sum, F
-from pos.models import Product, Order, OrderItem, Invoice, Customer
+from pos.models import Product, Order, OrderItem, Invoice, Customer, Payment
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
@@ -89,10 +89,20 @@ def order_payment(request, order_id):
         # Mark the order as completed
         order.status = 'Completed'
         order.save()
-        # Create Invoice (if not exists)
+        # Create or get Invoice
         invoice, created = Invoice.objects.get_or_create(
             order=order,
-            defaults={'invoice_number': f'INV-{order.id}'}
+            defaults={'invoice_number': f'INV-{order.id}', 'status': 'Unpaid'}
+        )
+        # Determine payment method from request (default to Cash)
+        payment_method = request.POST.get('payment_method', 'Cash')
+        # Create Payment record using selected method
+        Payment.objects.create(
+            invoice=invoice,
+            customer=order.customer,
+            amount=order_total,
+            method=payment_method,
+            reference='auto-generated'
         )
         # Redirect to printable invoice page
         return redirect('order_invoice', order_id=order.id)
@@ -151,6 +161,19 @@ def create_order(request):
                         quantity=quantity,
                         price_at_time_of_order=product.price
                     )
+                
+                # Calculate total for the order
+                total_amount = sum(
+                    Product.objects.get(id=item['product_id']).price * int(item['quantity'])
+                    for item in items
+                )
+                # Create Invoice
+                invoice = Invoice.objects.create(
+                    order=order,
+                    invoice_number=f'INV-{order.id}',
+                    status='Unpaid'
+                )
+
                 
             return JsonResponse({"message": "Order created successfully!", "order_id": order.id}, status=201)
         except Product.DoesNotExist:

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Order, OrderItem, Invoice, Customer
+from .models import Product, Order, OrderItem, Invoice, Customer, Payment
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -33,3 +33,9 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'email', 'phone', 'created_at')
     search_fields = ('name', 'email', 'phone')
     list_filter = ('created_at',)
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'invoice', 'customer', 'amount', 'method', 'reference', 'paid_at')
+    search_fields = ('invoice__invoice_number', 'customer__name', 'reference')
+    list_filter = ('method', 'paid_at')
+
