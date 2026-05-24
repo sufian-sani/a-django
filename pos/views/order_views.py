@@ -4,7 +4,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Sum, F
-from pos.models import Product, Order, OrderItem, Invoice
+from pos.models import Product, Order, OrderItem, Invoice, Customer
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
@@ -107,12 +107,13 @@ def order_payment(request, order_id):
 def create_order(request):
     if request.method == 'GET':
         products = Product.objects.all()
-        # Passing serialized products to avoid extra queries and simplify frontend
+        customers = Customer.objects.all().order_by('name')
         products_data = [
             {"id": p.id, "name": p.name, "price": str(p.price)} for p in products
         ]
         context = {
-            'products_json': json.dumps(products_data)
+            'products_json': json.dumps(products_data),
+            'customers': customers,
         }
         return render(request, 'pos/create_order.html', context)
     
@@ -124,9 +125,17 @@ def create_order(request):
             if not items:
                 return JsonResponse({"error": "No items in order"}, status=400)
             
+            customer_id = data.get('customer_id')
+            customer = None
+            if customer_id:
+                try:
+                    customer = Customer.objects.get(id=customer_id)
+                except Customer.DoesNotExist:
+                    pass
+
             with transaction.atomic():
-                # Create Order
-                order = Order.objects.create(status='Pending')
+                # Create Order (optionally linked to a customer)
+                order = Order.objects.create(status='Pending', customer=customer)
                 
                 # Create Order Items
                 for item in items:

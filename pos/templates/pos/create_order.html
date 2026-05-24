@@ -212,6 +212,18 @@
             <p style="color: var(--text-muted)">Add items and checkout instantly</p>
         </header>
 
+        <div class="order-card" style="margin-bottom: 1.5rem;">
+            <div style="margin-bottom: 0.75rem;">
+                <label for="customer-select" style="display: block; font-weight: 600; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Customer (Optional)</label>
+                <select id="customer-select" style="width: 100%;">
+                    <option value="">— Walk-in / No Customer —</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}">{{ customer.name }} {% if customer.email %}({{ customer.email }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
         <div class="order-card">
             <div class="items-header">
                 <div>Product</div>
@@ -374,9 +386,11 @@
                 });
             });
 
-            // If we are passing through the a-django main routing it might be under /pos/
-            // Lets assume current URL is fine or absolute path /pos/create-order/
-            let targetUrl = window.location.pathname; 
+            const customerId = document.getElementById('customer-select').value;
+            const payload = { items };
+            if (customerId) payload.customer_id = parseInt(customerId);
+
+            const targetUrl = window.location.pathname;
 
             try {
                 const response = await fetch(targetUrl, {
@@ -385,7 +399,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRFToken': csrftoken
                     },
-                    body: JSON.stringify({ items: items })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
