@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Payment - Order #{{ order.id }}</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --card-glow: rgba(59, 130, 246, 0.15);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .checkout-container {
+            width: 100%;
+            max-width: 1000px;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 2rem;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 868px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--card-glow) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .btn-back {
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            margin-bottom: 1.5rem;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+            width: fit-content;
+        }
+
+        .btn-back:hover {
+            color: var(--text-main);
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin: 0 0 1.5rem 0;
+            letter-spacing: -0.025em;
+        }
+
+        /* Order Summary Styling */
+        .order-summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .order-id {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .order-date {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .items-list {
+            max-height: 240px;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            padding-right: 0.5rem;
+        }
+
+        .items-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .items-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .items-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .item-qty-price {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 0.15rem;
+        }
+
+        .item-total {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .pricing-breakdown {
+            border-top: 1px dashed var(--border);
+            padding-top: 1.25rem;
+            margin-top: 1.25rem;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .price-row.total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--success);
+            border-top: 1px solid var(--border);
+            padding-top: 1rem;
+            margin-top: 0.5rem;
+            margin-bottom: 0;
+        }
+
+        /* Payment Selector Tab Control */
+        .payment-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            background: rgba(15, 23, 42, 0.4);
+            padding: 0.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.75rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            background: var(--card-bg);
+            color: var(--accent);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Credit Card Mockup */
+        .credit-card-mockup {
+            width: 100%;
+            height: 190px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #1d4ed8 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 15px 30px rgba(59, 130, 246, 0.25);
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .credit-card-mockup::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .cc-chip-logo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cc-chip {
+            width: 42px;
+            height: 32px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 6px;
+            box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.4);
+        }
+
+        .cc-logo {
+            font-size: 1.25rem;
+            font-weight: 800;
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.85);
+            letter-spacing: 0.05em;
+        }
+
+        .cc-number-display {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            margin-top: 1rem;
+        }
+
+        .cc-details-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: auto;
+        }
+
+        .cc-holder-display {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cc-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 0.2rem;
+        }
+
+        .cc-val {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #ffffff;
+            text-transform: uppercase;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Form Inputs */
+        .form-group {
+            margin-bottom: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.025em;
+        }
+
+        input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        input::placeholder {
+            color: rgba(148, 163, 184, 0.4);
+        }
+
+        /* Cash UI Styles */
+        .cash-payment-display {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .presets-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+
+        .preset-btn {
+            background: rgba(51, 65, 85, 0.4);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-weight: 600;
+            padding: 0.6rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .preset-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .change-due-box {
+            border-top: 1px dashed var(--border);
+            padding-top: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .change-val {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--success);
+            letter-spacing: -0.02em;
+        }
+
+        .change-val.insufficient {
+            color: var(--danger);
+        }
+
+        /* Payment Submit Button */
+        .btn-pay {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 10px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-top: auto;
+        }
+
+        .btn-pay:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-pay:disabled {
+            background: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Loading / Processing Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(59, 130, 246, 0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s infinite linear;
+            margin-bottom: 1.5rem;
+        }
+
+        .success-checkmark {
+            width: 80px;
+            height: 80px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 3px solid var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            animation: scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: none;
+        }
+
+        .success-checkmark svg {
+            width: 48px;
+            height: 48px;
+            color: var(--success);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes scaleUp {
+            from { transform: scale(0.6); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .status-text {
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="checkout-container">
+        <!-- LEFT COLUMN: ORDER SUMMARY -->
+        <div class="card">
+            <a href="{% url 'order_detail' order.id %}" class="btn-back">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Cancel &amp; Return
+            </a>
+            
+            <div class="order-summary-header">
+                <div class="order-id">Order Summary</div>
+                <div class="order-date">#{{ order.id }} &bull; {{ order.created_at|date:"M d, Y" }}</div>
+            </div>
+
+            <div class="items-list">
+                {% for item in items %}
+                <div class="item-row">
+                    <div class="item-info">
+                        <span class="item-name">{{ item.product.name }}</span>
+                        <span class="item-qty-price">{{ item.quantity }} x ${{ item.price_at_time_of_order }}</span>
+                    </div>
+                    <span class="item-total">${{ item.subtotal|floatformat:2 }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="pricing-breakdown">
+                <div class="price-row">
+                    <span>Subtotal</span>
+                    <span>${{ order_total|floatformat:2 }}</span>
+                </div>
+                <div class="price-row">
+                    <span>Tax (0%)</span>
+                    <span>$0.00</span>
+                </div>
+                <div class="price-row total">
+                    <span>Total Amount</span>
+                    <span>${{ order_total|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: PAYMENT DETAILS -->
+        <div class="card">
+            <h2>Payment Details</h2>
+
+            <!-- Payment Method Selector -->
+            <div class="payment-tabs">
+                <button type="button" class="tab-btn active" id="tab-card" onclick="setPaymentMethod('card')">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Credit Card
+                </button>
+                <button type="button" class="tab-btn" id="tab-cash" onclick="setPaymentMethod('cash')">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Cash
+                </button>
+            </div>
+
+            <form id="payment-form" method="POST" action="{% url 'order_payment' order.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="payment_method" id="payment-method-input" value="card">
+
+                <!-- CARD PAYMENT SUBFORM -->
+                <div id="card-payment-section">
+                    <!-- Visual Credit Card Mockup -->
+                    <div class="credit-card-mockup">
+                        <div class="cc-chip-logo">
+                            <div class="cc-chip"></div>
+                            <div class="cc-logo">VISA</div>
+                        </div>
+                        <div class="cc-number-display" id="cc-num-display">•••• •••• •••• ••••</div>
+                        <div class="cc-details-display">
+                            <div class="cc-holder-display">
+                                <span class="cc-label">Card Holder</span>
+                                <span class="cc-val" id="cc-name-display">JOHN DOE</span>
+                            </div>
+                            <div class="cc-holder-display">
+                                <span class="cc-label">Expires</span>
+                                <span class="cc-val" id="cc-expiry-display">MM/YY</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cardholder-name">Cardholder Name</label>
+                        <input type="text" id="cardholder-name" placeholder="John Doe" required autocomplete="cc-name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="card-number">Card Number</label>
+                        <input type="text" id="card-number" placeholder="4111 2222 3333 4444" maxlength="19" required autocomplete="cc-number">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="expiry-date">Expiration Date</label>
+                            <input type="text" id="expiry-date" placeholder="MM/YY" maxlength="5" required autocomplete="cc-exp">
+                        </div>
+                        <div class="form-group">
+                            <label for="cvv">CVV / CVC</label>
+                            <input type="password" id="cvv" placeholder="•••" maxlength="4" required autocomplete="cc-csc">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CASH PAYMENT SUBFORM -->
+                <div id="cash-payment-section" style="display: none;">
+                    <div class="cash-payment-display">
+                        <div class="form-group">
+                            <label for="cash-received">Cash Amount Received ($)</label>
+                            <input type="number" id="cash-received" step="0.01" min="0" placeholder="0.00" style="font-size: 1.5rem; text-align: right; font-weight: 700;">
+                        </div>
+
+                        <div>
+                            <label style="margin-bottom: 0.5rem; display: block;">Quick Presets</label>
+                            <div class="presets-grid" id="presets-container">
+                                <!-- Dynamic presets will be added in JS -->
+                            </div>
+                        </div>
+
+                        <div class="change-due-box">
+                            <span style="font-weight: 600; color: var(--text-muted);">Change to Return</span>
+                            <span class="change-val" id="change-value">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-pay" id="btn-pay">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <span id="btn-pay-text">Pay ${{ order_total|floatformat:2 }}</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Processing Overlay -->
+    <div class="overlay" id="overlay">
+        <div class="spinner" id="spinner"></div>
+        <div class="success-checkmark" id="success-mark">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <div class="status-text" id="status-text">Connecting Securely...</div>
+    </div>
+
+    <script>
+        const orderTotal = parseFloat("{{ order_total }}") || 0;
+        let selectedMethod = 'card';
+
+        // Set active payment tab and subform
+        function setPaymentMethod(method) {
+            selectedMethod = method;
+            document.getElementById('payment-method-input').value = method;
+
+            const tabCard = document.getElementById('tab-card');
+            const tabCash = document.getElementById('tab-cash');
+            const cardSection = document.getElementById('card-payment-section');
+            const cashSection = document.getElementById('cash-payment-section');
+            const btnPayText = document.getElementById('btn-pay-text');
+
+            if (method === 'card') {
+                tabCard.classList.add('active');
+                tabCash.classList.remove('active');
+                cardSection.style.display = 'block';
+                cashSection.style.display = 'none';
+
+                // Set validation attributes
+                document.getElementById('cardholder-name').setAttribute('required', '');
+                document.getElementById('card-number').setAttribute('required', '');
+                document.getElementById('expiry-date').setAttribute('required', '');
+                document.getElementById('cvv').setAttribute('required', '');
+                document.getElementById('cash-received').removeAttribute('required');
+
+                btnPayText.textContent = `Pay $${orderTotal.toFixed(2)}`;
+                updatePayButtonState();
+            } else {
+                tabCard.classList.remove('active');
+                tabCash.classList.add('active');
+                cardSection.style.display = 'none';
+                cashSection.style.display = 'block';
+
+                // Set validation attributes
+                document.getElementById('cardholder-name').removeAttribute('required');
+                document.getElementById('card-number').removeAttribute('required');
+                document.getElementById('expiry-date').removeAttribute('required');
+                document.getElementById('cvv').removeAttribute('required');
+                document.getElementById('cash-received').setAttribute('required', '');
+
+                btnPayText.textContent = `Complete Cash Sale`;
+                calculateChange();
+            }
+        }
+
+        // Build quick cash presets based on the order total
+        function generateCashPresets() {
+            const container = document.getElementById('presets-container');
+            container.innerHTML = '';
+
+            const exact = orderTotal;
+            const next5 = Math.ceil(orderTotal / 5) * 5;
+            const next10 = Math.ceil(orderTotal / 10) * 10;
+            const next20 = Math.ceil(orderTotal / 20) * 20;
+
+            const presets = new Set([exact, next5, next10, next20]);
+            
+            // Add classic round numbers if they are greater than order total
+            [10, 20, 50, 100].forEach(val => {
+                if (val > orderTotal) presets.add(val);
+            });
+
+            // Convert to array, sort, and slice top 4
+            Array.from(presets)
+                .sort((a, b) => a - b)
+                .slice(0, 4)
+                .forEach(val => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'preset-btn';
+                    btn.textContent = `$${val.toFixed(2)}`;
+                    btn.onclick = () => {
+                        document.getElementById('cash-received').value = val.toFixed(2);
+                        calculateChange();
+                    };
+                    container.appendChild(btn);
+                });
+        }
+
+        // Dynamically compute cash change
+        const cashReceivedInput = document.getElementById('cash-received');
+        const changeValue = document.getElementById('change-value');
+
+        function calculateChange() {
+            const received = parseFloat(cashReceivedInput.value) || 0;
+            const change = received - orderTotal;
+
+            if (received === 0) {
+                changeValue.textContent = `$0.00`;
+                changeValue.classList.remove('insufficient');
+            } else if (change < 0) {
+                changeValue.textContent = `Insufficient`;
+                changeValue.classList.add('insufficient');
+            } else {
+                changeValue.textContent = `$${change.toFixed(2)}`;
+                changeValue.classList.remove('insufficient');
+            }
+            updatePayButtonState();
+        }
+
+        cashReceivedInput.addEventListener('input', calculateChange);
+
+        function updatePayButtonState() {
+            const payBtn = document.getElementById('btn-pay');
+            if (selectedMethod === 'cash') {
+                const received = parseFloat(cashReceivedInput.value) || 0;
+                payBtn.disabled = (received < orderTotal);
+            } else {
+                payBtn.disabled = false;
+            }
+        }
+
+        // Credit Card Input formatting logic
+        const ccNumInput = document.getElementById('card-number');
+        const ccNameInput = document.getElementById('cardholder-name');
+        const ccExpiryInput = document.getElementById('expiry-date');
+
+        const ccNumDisplay = document.getElementById('cc-num-display');
+        const ccNameDisplay = document.getElementById('cc-name-display');
+        const ccExpiryDisplay = document.getElementById('cc-expiry-display');
+
+        ccNumInput.addEventListener('input', (e) => {
+            let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+            let formatted = '';
+            for(let i=0; i<val.length; i++) {
+                if(i > 0 && i % 4 === 0) formatted += ' ';
+                formatted += val[i];
+            }
+            e.target.value = formatted.substring(0, 19);
+            ccNumDisplay.textContent = e.target.value || '•••• •••• •••• ••••';
+        });
+
+        ccNameInput.addEventListener('input', (e) => {
+            ccNameDisplay.textContent = e.target.value.toUpperCase() || 'JOHN DOE';
+        });
+
+        ccExpiryInput.addEventListener('input', (e) => {
+            let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+            if(val.length > 2) {
+                val = val.substring(0, 2) + '/' + val.substring(2, 4);
+            }
+            e.target.value = val;
+            ccExpiryDisplay.textContent = e.target.value || 'MM/YY';
+        });
+
+        // Checkout Animation simulation
+        const form = document.getElementById('payment-form');
+        const overlay = document.getElementById('overlay');
+        const spinner = document.getElementById('spinner');
+        const successMark = document.getElementById('success-mark');
+        const statusText = document.getElementById('status-text');
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            overlay.classList.add('active');
+            
+            if (selectedMethod === 'card') {
+                statusText.textContent = "Connecting securely...";
+                setTimeout(() => {
+                    statusText.textContent = "Authorizing card transaction...";
+                    setTimeout(() => {
+                        statusText.textContent = "Securing funds...";
+                        setTimeout(() => {
+                            spinner.style.display = 'none';
+                            successMark.style.display = 'flex';
+                            statusText.textContent = "Card Payment Successful! Finalizing Order...";
+                            setTimeout(() => {
+                                form.submit();
+                            }, 1000);
+                        }, 1200);
+                    }, 1200);
+                }, 1000);
+            } else {
+                statusText.textContent = "Validating Cash amount...";
+                setTimeout(() => {
+                    statusText.textContent = "Registering transaction log...";
+                    setTimeout(() => {
+                        spinner.style.display = 'none';
+                        successMark.style.display = 'flex';
+                        statusText.textContent = "Cash received! Printing Receipt...";
+                        setTimeout(() => {
+                            form.submit();
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            }
+        });
+
+        // Initialize Cash presets
+        generateCashPresets();
+    </script>
+</body>
+</html>

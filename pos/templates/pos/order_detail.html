@@ -223,13 +223,13 @@
                     {% endif %}
                 </div>
             </div>
-            <div id="action-container">
+            <a href="{% url 'order_list' %}" class="btn-back" style="margin-bottom: 1rem; display: inline-block;">&#8592; Back to Orders</a>
+
                 {% if order.status|lower == 'pending' %}
-                {% if order.status|lower == 'pending' %}
-        <a href="{% url 'order_payment' order.id %}" class="btn-deliver">Mark as Delivered</a>
-        {% else %}
-        <a href="{% url 'order_invoice' order.id %}" target="_blank" class="btn-invoice">View Invoice</a>
-        {% endif %}
+                <a href="{% url 'order_payment' order.id %}" class="btn-deliver" style="background: var(--warning); color: #000; font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Pay &amp; Deliver
+                </a>
                 {% else %}
                 <a href="{% url 'order_invoice' order.id %}" target="_blank" class="btn-invoice">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
