@@ -105,7 +105,7 @@ def order_payment(request, order_id):
             reference='auto-generated'
         )
         # Redirect to printable invoice page
-        return redirect('order_invoice', order_id=order.id)
+        return redirect('order_detail', order_id=order.id)
     else:
         context = {
             'order': order,
