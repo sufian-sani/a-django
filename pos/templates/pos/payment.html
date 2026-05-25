@@ -744,33 +744,22 @@
                 <div class="split-controls">
                     <div class="split-title-row">
                         <span class="split-title">Split Bill</span>
-                        <span class="split-note" id="split-preview">Paying full remaining amount</span>
+                        <span class="split-note" id="split-preview"></span>
                     </div>
                     <label class="split-mode-toggle" for="split-amount-mode">
                         <input type="checkbox" id="split-amount-mode">
-                        Split by amount (Card + Cash)
+                        Split by amount
                     </label>
-                    <div class="split-summary-card" id="split-summary-card">
-                        <div class="split-summary-row">
-                            <span class="split-summary-label">Card amount</span>
-                            <span id="split-summary-card-value">$0.00</span>
-                        </div>
-                        <div class="split-summary-row">
-                            <span class="split-summary-label">Cash amount</span>
-                            <span id="split-summary-cash-value">$0.00</span>
-                        </div>
-                        <div class="split-summary-row split-summary-total">
-                            <span>Total split amount</span>
-                            <span id="split-summary-total-value">$0.00</span>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Amount to Pay -->
                 <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
                     <label for="amount-input" id="amount-input-label" style="font-weight: 600; font-size: 1.1rem; color: var(--text-main);">Amount to Pay ($)</label>
-                    <input type="number" name="amount" id="amount-input" step="0.01" min="0.01" max="{{ remaining_amount }}" value="{{ remaining_amount|floatformat:2 }}" style="font-size: 1.5rem; text-align: right; font-weight: 700; width: 100%; box-sizing: border-box; background: rgba(15,23,42,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; color: var(--text-main);">
+                    <input type="number" name="amount" id="amount-input" step="0.01" min="0.01" max="{{ remaining_amount }}" value="0.00" style="font-size: 1.5rem; text-align: right; font-weight: 700; width: 100%; box-sizing: border-box; background: rgba(15,23,42,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; color: var(--text-main);">
                     <small id="amount-help-text" style="color: var(--text-muted); display: block; margin-top: 0.25rem;">Enter the amount for this specific transaction. Default is the remaining balance.</small>
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">
+                        Installment flow: pay part now (example 700), then pay the rest later (example 300). You can use Cash then Cash, Card then Card, or mix methods until remaining balance is 0.
+                    </small>
                 </div>
 
                 <button type="submit" class="btn-pay" id="btn-pay">
@@ -803,38 +792,44 @@
                 return Math.round(value * 100) / 100;
             }
 
+            function getSplitAmountsFromInput() {
+                const entered = Math.max(0, parseFloat(document.getElementById('amount-input').value) || 0);
+                if (selectedMethod === 'cash') {
+                    return { card: 0, cash: entered };
+                }
+                return { card: entered, cash: 0 };
+            }
+
+            function updateSplitAmountLabel() {
+                const amountLabel = document.getElementById('amount-input-label');
+                if (!splitAmountMode) {
+                    amountLabel.textContent = 'Amount to Pay ($)';
+                    return;
+                }
+                amountLabel.textContent = selectedMethod === 'cash' ? 'Cash Amount ($)' : 'Card Amount ($)';
+            }
+
             function refreshSplitPreview() {
                 const preview = document.getElementById('split-preview');
-                const splitSummaryCard = document.getElementById('split-summary-card');
-                const splitSummaryCardValue = document.getElementById('split-summary-card-value');
-                const splitSummaryCashValue = document.getElementById('split-summary-cash-value');
-                const splitSummaryTotalValue = document.getElementById('split-summary-total-value');
                 const amountHelpText = document.getElementById('amount-help-text');
-                const paymentModeHint = document.getElementById('payment-mode-hint');
 
                 if (splitAmountMode) {
-                    const card = Math.max(0, parseFloat(document.getElementById('amount-input').value) || 0);
-                    const cash = Math.max(0, roundToCents(remainingAmount - card));
+                    const { card, cash } = getSplitAmountsFromInput();
                     const total = roundToCents(card + cash);
+                    const remainAfterThisPayment = Math.max(0, roundToCents(remainingAmount - total));
 
-                    splitSummaryCard.classList.add('active');
-                    splitSummaryCardValue.textContent = `$${card.toFixed(2)}`;
-                    splitSummaryCashValue.textContent = `$${cash.toFixed(2)}`;
-                    splitSummaryTotalValue.textContent = `$${total.toFixed(2)}`;
-                    amountHelpText.textContent = 'Enter the card amount in the field below. Cash is calculated automatically from the remaining balance.';
-                    paymentModeHint.textContent = 'Split mode is active. Fill the card amount below, then submit one combined payment.';
-                    preview.textContent = `Card $${card.toFixed(2)} + Cash $${cash.toFixed(2)} = $${total.toFixed(2)}`;
+                    amountHelpText.textContent = selectedMethod === 'cash'
+                        ? 'Enter split amount in the field below. Card is fixed at 0.00 in this one-field mode.'
+                        : 'Enter split amount in the field below. Cash is fixed at 0.00 in this one-field mode.';
+                    preview.textContent = `Remaining after this payment: $${remainAfterThisPayment.toFixed(2)}`;
                 } else {
-                    splitSummaryCard.classList.remove('active');
                     amountHelpText.textContent = 'Enter the amount for this specific transaction. Default is the remaining balance.';
-                    paymentModeHint.textContent = 'Use the tabs above to choose either card or cash, then pay the remaining balance or a custom amount.';
-                    preview.textContent = 'Paying full remaining amount';
+                    preview.textContent = `Remaining balance: $${remainingAmount.toFixed(2)}`;
                 }
             }
 
             function syncSplitAmountsToForm() {
-                const card = Math.max(0, parseFloat(document.getElementById('amount-input').value) || 0);
-                const cash = Math.max(0, roundToCents(remainingAmount - card));
+                const { card, cash } = getSplitAmountsFromInput();
 
                 document.getElementById('card-amount-input').value = card.toFixed(2);
                 document.getElementById('cash-amount-input').value = cash.toFixed(2);
@@ -853,14 +848,16 @@
                 document.getElementById('split-amount-mode-input').value = enabled ? '1' : '0';
 
                 if (enabled) {
-                    amountInput.value = remainingAmount.toFixed(2);
+                    amountInput.value = '0.00';
                     amountInput.readOnly = false;
-                    document.getElementById('amount-input-label').textContent = 'Card Amount ($)';
-                    amountHelpText.textContent = 'Enter the card amount in the field below. Cash is calculated automatically from the remaining balance.';
+                    updateSplitAmountLabel();
+                    amountHelpText.textContent = selectedMethod === 'cash'
+                        ? 'Enter split amount in the field below. Card is fixed at 0.00 in this one-field mode.'
+                        : 'Enter split amount in the field below. Cash is fixed at 0.00 in this one-field mode.';
                     syncSplitAmountsToForm();
                 } else {
                     amountInput.readOnly = false;
-                    document.getElementById('amount-input-label').textContent = 'Amount to Pay ($)';
+                    updateSplitAmountLabel();
                     amountHelpText.textContent = 'Enter the amount for this specific transaction. Default is the remaining balance.';
                     amountInput.value = remainingAmount.toFixed(2);
                     document.getElementById('card-amount-input').value = '0.00';
@@ -875,8 +872,7 @@
             function updateButtonLabel() {
                 const btnPayText = document.getElementById('btn-pay-text');
                 if (splitAmountMode) {
-                    const card = Math.max(0, parseFloat(document.getElementById('amount-input').value) || 0);
-                    const cash = Math.max(0, roundToCents(remainingAmount - card));
+                    const { card, cash } = getSplitAmountsFromInput();
                     btnPayText.textContent = `Submit Split Payment $${roundToCents(card + cash).toFixed(2)}`;
                     return;
                 }
@@ -890,8 +886,7 @@
 
             function getAmountToPay() {
                 if (splitAmountMode) {
-                    const card = Math.max(0, parseFloat(document.getElementById('amount-input').value) || 0);
-                    const cash = Math.max(0, roundToCents(remainingAmount - card));
+                    const { card, cash } = getSplitAmountsFromInput();
                     return roundToCents(card + cash);
                 }
                 const amountInput = document.getElementById('amount-input');
@@ -927,6 +922,10 @@
                     document.getElementById('expiry-date').setAttribute('required', '');
                     document.getElementById('cvv').setAttribute('required', '');
 
+                    updateSplitAmountLabel();
+                    if (splitAmountMode) {
+                        syncSplitAmountsToForm();
+                    }
                     updateButtonLabel();
                     updatePayButtonState();
                 } else {
@@ -941,7 +940,12 @@
                     document.getElementById('expiry-date').removeAttribute('required');
                     document.getElementById('cvv').removeAttribute('required');
 
+                    updateSplitAmountLabel();
+                    if (splitAmountMode) {
+                        syncSplitAmountsToForm();
+                    }
                     updateButtonLabel();
+                    updatePayButtonState();
                 }
             }
 
@@ -1090,6 +1094,9 @@
             });
 
             // Initialize Cash presets
+            amountInput.value = '0.00';
+            document.getElementById('card-amount-input').value = '0.00';
+            document.getElementById('cash-amount-input').value = '0.00';
             generateCashPresets();
             refreshSplitPreview();
             updateButtonLabel();
