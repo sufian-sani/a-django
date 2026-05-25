@@ -145,17 +145,6 @@ def order_payment(request, order_id):
             invoice.is_split = True
             
         invoice.save()
-        
-        # Determine what to store as the order's payment_method
-        if payments_count > 1:
-            # Check if all payments used the same method
-            distinct_methods = invoice.payments.values_list('payment_method', flat=True).distinct()
-            if distinct_methods.count() == 1:
-                order.payment_method = distinct_methods.first()
-            else:
-                order.payment_method = 'Split'
-        else:
-            order.payment_method = payment_method
         order.save()
         
         # If still unpaid, redirect back to payment page for the next installment
