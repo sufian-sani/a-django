@@ -2,7 +2,7 @@ from django.db import models
 from .order import Order
 
 class Invoice(models.Model):
-    order = models.OneToOneField(Order, related_name='invoice', on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, related_name='invoice', on_delete=models.CASCADE)
     invoice_number = models.CharField(max_length=50, unique=True)
     status = models.CharField(
         max_length=20,
