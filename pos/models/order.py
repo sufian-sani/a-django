@@ -9,6 +9,7 @@ class Order(models.Model):
     PAYMENT_METHOD_CHOICES = (
         ('Cash', 'Cash'),
         ('Card', 'Card'),
+        ('Split', 'Split'),
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='Cash', blank=True)

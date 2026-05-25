@@ -548,22 +548,34 @@
 
             <div class="pricing-breakdown">
                 <div class="price-row">
-                    <span>Subtotal</span>
-                    <span>${{ order_total|floatformat:2 }}</span>
-                </div>
-                <div class="price-row">
-                    <span>Tax (0%)</span>
-                    <span>$0.00</span>
-                </div>
-                <div class="price-row total">
                     <span>Total Amount</span>
                     <span>${{ order_total|floatformat:2 }}</span>
+                </div>
+                <div class="price-row" style="color: var(--success); font-weight: 500;">
+                    <span>Already Paid</span>
+                    <span>${{ paid_amount|floatformat:2 }}</span>
+                </div>
+                <div class="price-row total" style="border-top: 1px dashed rgba(51, 65, 85, 0.8); padding-top: 0.5rem; margin-top: 0.5rem;">
+                    <span>Remaining Balance</span>
+                    <span style="color: var(--warning);">${{ remaining_amount|floatformat:2 }}</span>
                 </div>
             </div>
         </div>
 
         <!-- RIGHT COLUMN: PAYMENT DETAILS -->
         <div class="card">
+            {% if remaining_amount <= 0 %}
+            <div style="text-align: center; padding: 2rem 1rem;">
+                <div style="width: 80px; height: 80px; background: rgba(16,185,129,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
+                    <svg width="40" height="40" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 style="margin-bottom: 0.5rem; color: #10b981;">Order Fully Paid</h2>
+                <p style="color: var(--text-muted); margin-bottom: 2rem;">No outstanding balance remains for this order.</p>
+                <a href="{% url 'order_detail' order.id %}" class="btn-pay" style="display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 600; width: auto; padding: 0.75rem 2rem;">
+                    Back to Order Details
+                </a>
+            </div>
+            {% else %}
             <h2>Payment Details</h2>
 
             <!-- Payment Method Selector -->
@@ -647,11 +659,19 @@
                     </div>
                 </div>
 
+                <!-- Amount to Pay -->
+                <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                    <label for="amount-input" style="font-weight: 600; font-size: 1.1rem; color: var(--text-main);">Amount to Pay ($)</label>
+                    <input type="number" name="amount" id="amount-input" step="0.01" min="0.01" max="{{ remaining_amount }}" value="{{ remaining_amount|floatformat:2 }}" style="font-size: 1.5rem; text-align: right; font-weight: 700; width: 100%; box-sizing: border-box; background: rgba(15,23,42,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; color: var(--text-main);">
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">Enter the amount for this specific transaction. Default is the remaining balance.</small>
+                </div>
+
                 <button type="submit" class="btn-pay" id="btn-pay">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    <span id="btn-pay-text">Pay ${{ order_total|floatformat:2 }}</span>
+                    <span id="btn-pay-text">Pay ${{ remaining_amount|floatformat:2 }}</span>
                 </button>
             </form>
+            {% endif %}
         </div>
     </div>
 
@@ -666,197 +686,230 @@
 
     <script>
         const orderTotal = parseFloat("{{ order_total }}") || 0;
-        let selectedMethod = 'card';
+        const remainingAmount = parseFloat("{{ remaining_amount }}") || 0;
+        
+        if (remainingAmount > 0) {
+            let selectedMethod = 'card';
 
-        // Set active payment tab and subform
-        function setPaymentMethod(method) {
-            selectedMethod = method;
-            document.getElementById('payment-method-input').value = method;
-
-            const tabCard = document.getElementById('tab-card');
-            const tabCash = document.getElementById('tab-cash');
-            const cardSection = document.getElementById('card-payment-section');
-            const cashSection = document.getElementById('cash-payment-section');
-            const btnPayText = document.getElementById('btn-pay-text');
-
-            if (method === 'card') {
-                tabCard.classList.add('active');
-                tabCash.classList.remove('active');
-                cardSection.style.display = 'block';
-                cashSection.style.display = 'none';
-
-                // Set validation attributes
-                document.getElementById('cardholder-name').setAttribute('required', '');
-                document.getElementById('card-number').setAttribute('required', '');
-                document.getElementById('expiry-date').setAttribute('required', '');
-                document.getElementById('cvv').setAttribute('required', '');
-                document.getElementById('cash-received').removeAttribute('required');
-
-                btnPayText.textContent = `Pay $${orderTotal.toFixed(2)}`;
-                updatePayButtonState();
-            } else {
-                tabCard.classList.remove('active');
-                tabCash.classList.add('active');
-                cardSection.style.display = 'none';
-                cashSection.style.display = 'block';
-
-                // Set validation attributes
-                document.getElementById('cardholder-name').removeAttribute('required');
-                document.getElementById('card-number').removeAttribute('required');
-                document.getElementById('expiry-date').removeAttribute('required');
-                document.getElementById('cvv').removeAttribute('required');
-                document.getElementById('cash-received').setAttribute('required', '');
-
-                btnPayText.textContent = `Complete Cash Sale`;
-                calculateChange();
+            function getAmountToPay() {
+                const amountInput = document.getElementById('amount-input');
+                const val = parseFloat(amountInput.value) || 0;
+                if (val > remainingAmount) {
+                    return remainingAmount;
+                }
+                if (val <= 0) {
+                    return 0.01;
+                }
+                return val;
             }
-        }
 
-        // Build quick cash presets based on the order total
-        function generateCashPresets() {
-            const container = document.getElementById('presets-container');
-            container.innerHTML = '';
+            // Set active payment tab and subform
+            function setPaymentMethod(method) {
+                selectedMethod = method;
+                document.getElementById('payment-method-input').value = method;
 
-            const exact = orderTotal;
-            const next5 = Math.ceil(orderTotal / 5) * 5;
-            const next10 = Math.ceil(orderTotal / 10) * 10;
-            const next20 = Math.ceil(orderTotal / 20) * 20;
+                const tabCard = document.getElementById('tab-card');
+                const tabCash = document.getElementById('tab-cash');
+                const cardSection = document.getElementById('card-payment-section');
+                const cashSection = document.getElementById('cash-payment-section');
+                const btnPayText = document.getElementById('btn-pay-text');
 
-            const presets = new Set([exact, next5, next10, next20]);
-            
-            // Add classic round numbers if they are greater than order total
-            [10, 20, 50, 100].forEach(val => {
-                if (val > orderTotal) presets.add(val);
+                if (method === 'card') {
+                    tabCard.classList.add('active');
+                    tabCash.classList.remove('active');
+                    cardSection.style.display = 'block';
+                    cashSection.style.display = 'none';
+
+                    // Set validation attributes
+                    document.getElementById('cardholder-name').setAttribute('required', '');
+                    document.getElementById('card-number').setAttribute('required', '');
+                    document.getElementById('expiry-date').setAttribute('required', '');
+                    document.getElementById('cvv').setAttribute('required', '');
+                    document.getElementById('cash-received').removeAttribute('required');
+
+                    btnPayText.textContent = `Pay $${getAmountToPay().toFixed(2)}`;
+                    updatePayButtonState();
+                } else {
+                    tabCard.classList.remove('active');
+                    tabCash.classList.add('active');
+                    cardSection.style.display = 'none';
+                    cashSection.style.display = 'block';
+
+                    // Set validation attributes
+                    document.getElementById('cardholder-name').removeAttribute('required');
+                    document.getElementById('card-number').removeAttribute('required');
+                    document.getElementById('expiry-date').removeAttribute('required');
+                    document.getElementById('cvv').removeAttribute('required');
+                    document.getElementById('cash-received').setAttribute('required', '');
+
+                    btnPayText.textContent = `Complete Cash Sale`;
+                    calculateChange();
+                }
+            }
+
+            // Build quick cash presets based on the amount to pay
+            function generateCashPresets() {
+                const container = document.getElementById('presets-container');
+                container.innerHTML = '';
+
+                const amountToPay = getAmountToPay();
+                const exact = amountToPay;
+                const next5 = Math.ceil(amountToPay / 5) * 5;
+                const next10 = Math.ceil(amountToPay / 10) * 10;
+                const next20 = Math.ceil(amountToPay / 20) * 20;
+
+                const presets = new Set([exact, next5, next10, next20]);
+                
+                // Add classic round numbers if they are greater than amount to pay
+                [10, 20, 50, 100].forEach(val => {
+                    if (val > amountToPay) presets.add(val);
+                });
+
+                // Convert to array, sort, and slice top 4
+                Array.from(presets)
+                    .sort((a, b) => a - b)
+                    .slice(0, 4)
+                    .forEach(val => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'preset-btn';
+                        btn.textContent = `$${val.toFixed(2)}`;
+                        btn.onclick = () => {
+                            document.getElementById('cash-received').value = val.toFixed(2);
+                            calculateChange();
+                        };
+                        container.appendChild(btn);
+                    });
+            }
+
+            // Dynamically compute cash change
+            const cashReceivedInput = document.getElementById('cash-received');
+            const changeValue = document.getElementById('change-value');
+
+            function calculateChange() {
+                const received = parseFloat(cashReceivedInput.value) || 0;
+                const amountToPay = getAmountToPay();
+                const change = received - amountToPay;
+
+                if (received === 0) {
+                    changeValue.textContent = `$0.00`;
+                    changeValue.classList.remove('insufficient');
+                } else if (change < 0) {
+                    changeValue.textContent = `Insufficient`;
+                    changeValue.classList.add('insufficient');
+                } else {
+                    changeValue.textContent = `$${change.toFixed(2)}`;
+                    changeValue.classList.remove('insufficient');
+                }
+                updatePayButtonState();
+            }
+
+            cashReceivedInput.addEventListener('input', calculateChange);
+
+            function updatePayButtonState() {
+                const payBtn = document.getElementById('btn-pay');
+                if (selectedMethod === 'cash') {
+                    const received = parseFloat(cashReceivedInput.value) || 0;
+                    payBtn.disabled = (received < getAmountToPay());
+                } else {
+                    payBtn.disabled = false;
+                }
+            }
+
+            // Listen to changes in amount to pay input
+            const amountInput = document.getElementById('amount-input');
+            amountInput.addEventListener('input', () => {
+                let val = parseFloat(amountInput.value) || 0;
+                if (val > remainingAmount) {
+                    amountInput.value = remainingAmount.toFixed(2);
+                }
+                if (selectedMethod === 'card') {
+                    document.getElementById('btn-pay-text').textContent = `Pay $${getAmountToPay().toFixed(2)}`;
+                } else {
+                    calculateChange();
+                    generateCashPresets();
+                }
             });
 
-            // Convert to array, sort, and slice top 4
-            Array.from(presets)
-                .sort((a, b) => a - b)
-                .slice(0, 4)
-                .forEach(val => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'preset-btn';
-                    btn.textContent = `$${val.toFixed(2)}`;
-                    btn.onclick = () => {
-                        document.getElementById('cash-received').value = val.toFixed(2);
-                        calculateChange();
-                    };
-                    container.appendChild(btn);
-                });
-        }
+            // Credit Card Input formatting logic
+            const ccNumInput = document.getElementById('card-number');
+            const ccNameInput = document.getElementById('cardholder-name');
+            const ccExpiryInput = document.getElementById('expiry-date');
 
-        // Dynamically compute cash change
-        const cashReceivedInput = document.getElementById('cash-received');
-        const changeValue = document.getElementById('change-value');
+            const ccNumDisplay = document.getElementById('cc-num-display');
+            const ccNameDisplay = document.getElementById('cc-name-display');
+            const ccExpiryDisplay = document.getElementById('cc-expiry-display');
 
-        function calculateChange() {
-            const received = parseFloat(cashReceivedInput.value) || 0;
-            const change = received - orderTotal;
+            ccNumInput.addEventListener('input', (e) => {
+                let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                let formatted = '';
+                for(let i=0; i<val.length; i++) {
+                    if(i > 0 && i % 4 === 0) formatted += ' ';
+                    formatted += val[i];
+                }
+                e.target.value = formatted.substring(0, 19);
+                ccNumDisplay.textContent = e.target.value || '•••• •••• •••• ••••';
+            });
 
-            if (received === 0) {
-                changeValue.textContent = `$0.00`;
-                changeValue.classList.remove('insufficient');
-            } else if (change < 0) {
-                changeValue.textContent = `Insufficient`;
-                changeValue.classList.add('insufficient');
-            } else {
-                changeValue.textContent = `$${change.toFixed(2)}`;
-                changeValue.classList.remove('insufficient');
-            }
-            updatePayButtonState();
-        }
+            ccNameInput.addEventListener('input', (e) => {
+                ccNameDisplay.textContent = e.target.value.toUpperCase() || 'JOHN DOE';
+            });
 
-        cashReceivedInput.addEventListener('input', calculateChange);
+            ccExpiryInput.addEventListener('input', (e) => {
+                let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                if(val.length > 2) {
+                    val = val.substring(0, 2) + '/' + val.substring(2, 4);
+                }
+                e.target.value = val;
+                ccExpiryDisplay.textContent = e.target.value || 'MM/YY';
+            });
 
-        function updatePayButtonState() {
-            const payBtn = document.getElementById('btn-pay');
-            if (selectedMethod === 'cash') {
-                const received = parseFloat(cashReceivedInput.value) || 0;
-                payBtn.disabled = (received < orderTotal);
-            } else {
-                payBtn.disabled = false;
-            }
-        }
+            // Checkout Animation simulation
+            const form = document.getElementById('payment-form');
+            const overlay = document.getElementById('overlay');
+            const spinner = document.getElementById('spinner');
+            const successMark = document.getElementById('success-mark');
+            const statusText = document.getElementById('status-text');
 
-        // Credit Card Input formatting logic
-        const ccNumInput = document.getElementById('card-number');
-        const ccNameInput = document.getElementById('cardholder-name');
-        const ccExpiryInput = document.getElementById('expiry-date');
-
-        const ccNumDisplay = document.getElementById('cc-num-display');
-        const ccNameDisplay = document.getElementById('cc-name-display');
-        const ccExpiryDisplay = document.getElementById('cc-expiry-display');
-
-        ccNumInput.addEventListener('input', (e) => {
-            let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-            let formatted = '';
-            for(let i=0; i<val.length; i++) {
-                if(i > 0 && i % 4 === 0) formatted += ' ';
-                formatted += val[i];
-            }
-            e.target.value = formatted.substring(0, 19);
-            ccNumDisplay.textContent = e.target.value || '•••• •••• •••• ••••';
-        });
-
-        ccNameInput.addEventListener('input', (e) => {
-            ccNameDisplay.textContent = e.target.value.toUpperCase() || 'JOHN DOE';
-        });
-
-        ccExpiryInput.addEventListener('input', (e) => {
-            let val = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-            if(val.length > 2) {
-                val = val.substring(0, 2) + '/' + val.substring(2, 4);
-            }
-            e.target.value = val;
-            ccExpiryDisplay.textContent = e.target.value || 'MM/YY';
-        });
-
-        // Checkout Animation simulation
-        const form = document.getElementById('payment-form');
-        const overlay = document.getElementById('overlay');
-        const spinner = document.getElementById('spinner');
-        const successMark = document.getElementById('success-mark');
-        const statusText = document.getElementById('status-text');
-
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            overlay.classList.add('active');
-            
-            if (selectedMethod === 'card') {
-                statusText.textContent = "Connecting securely...";
-                setTimeout(() => {
-                    statusText.textContent = "Authorizing card transaction...";
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                overlay.classList.add('active');
+                
+                if (selectedMethod === 'card') {
+                    statusText.textContent = "Connecting securely...";
                     setTimeout(() => {
-                        statusText.textContent = "Securing funds...";
+                        statusText.textContent = "Authorizing card transaction...";
+                        setTimeout(() => {
+                            statusText.textContent = "Securing funds...";
+                            setTimeout(() => {
+                                spinner.style.display = 'none';
+                                successMark.style.display = 'flex';
+                                statusText.textContent = "Card Payment Successful! Finalizing Order...";
+                                setTimeout(() => {
+                                    form.submit();
+                                }, 1000);
+                            }, 1200);
+                        }, 1200);
+                    }, 1000);
+                } else {
+                    statusText.textContent = "Validating Cash amount...";
+                    setTimeout(() => {
+                        statusText.textContent = "Registering transaction log...";
                         setTimeout(() => {
                             spinner.style.display = 'none';
                             successMark.style.display = 'flex';
-                            statusText.textContent = "Card Payment Successful! Finalizing Order...";
+                            statusText.textContent = "Cash received! Printing Receipt...";
                             setTimeout(() => {
                                 form.submit();
                             }, 1000);
-                        }, 1200);
-                    }, 1200);
-                }, 1000);
-            } else {
-                statusText.textContent = "Validating Cash amount...";
-                setTimeout(() => {
-                    statusText.textContent = "Registering transaction log...";
-                    setTimeout(() => {
-                        spinner.style.display = 'none';
-                        successMark.style.display = 'flex';
-                        statusText.textContent = "Cash received! Printing Receipt...";
-                        setTimeout(() => {
-                            form.submit();
                         }, 1000);
                     }, 1000);
-                }, 1000);
-            }
-        });
+                }
+            });
 
-        // Initialize Cash presets
-        generateCashPresets();
+            // Initialize Cash presets
+            generateCashPresets();
+        }
     </script>
 </body>
 </html>

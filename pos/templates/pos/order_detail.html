@@ -285,6 +285,26 @@
                     <div class="grand-total-row">${{ order_total|floatformat:2 }}</div>
                 </div>
             </div>
+            
+            {% if payments %}
+            <div style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--success);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Payments Received
+                </h3>
+                <div class="payments-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    {% for p in payments %}
+                    <div style="background: rgba(15,23,42,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-weight: 600; color: var(--text-main); display: block;">{{ p.payment_method }} Payment</span>
+                            <small style="color: var(--text-muted);">Paid on {{ p.paid_at|date:"F j, Y, g:i a" }} &bull; Ref: {{ p.reference }}</small>
+                        </div>
+                        <div style="font-size: 1.15rem; font-weight: 700; color: var(--success);">${{ p.amount|floatformat:2 }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 

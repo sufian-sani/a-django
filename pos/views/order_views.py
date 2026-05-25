@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -27,10 +28,15 @@ def order_detail(request, order_id):
         item.subtotal = item.quantity * item.price_at_time_of_order
         order_total += item.subtotal
         
+    invoice = getattr(order, 'invoice', None)
+    payments = invoice.payments.all() if invoice else []
+    
     context = {
         'order': order,
         'items': items,
-        'order_total': order_total
+        'order_total': order_total,
+        'invoice': invoice,
+        'payments': payments,
     }
     return render(request, 'pos/order_detail.html', context)
 
@@ -76,45 +82,93 @@ def order_invoice(request, order_id):
 @ensure_csrf_cookie
 def order_payment(request, order_id):
     """Render a simple payment page and process payment.
-    On GET: show total and a Pay button.
-    On POST: mark order as completed, create invoice, then redirect to invoice view.
+    On GET: show total, paid amount, remaining balance, and options.
+    On POST: record a payment of specified amount and update order/invoice states.
     """
     order = get_object_or_404(Order, id=order_id)
     items = order.items.select_related('product').all()
     # calculate totals
     order_total = sum(item.quantity * item.price_at_time_of_order for item in items)
+    
+    # Create or get Invoice
+    invoice, created = Invoice.objects.get_or_create(
+        order=order,
+        defaults={'invoice_number': f'INV-{order.id}', 'status': 'Unpaid'}
+    )
+    
+    # Calculate already paid and remaining amount
+    paid_amount = invoice.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    remaining_amount = Decimal(order_total) - Decimal(paid_amount)
+    
     if request.method == 'POST':
-        # Here you would integrate a real payment gateway.
-        # For this demo we just assume payment succeeded.
-        # Mark the order as completed
-        # Determine payment method from request (default to Cash) and capitalize to match choices (Card, Cash)
+        # Determine payment method from request (default to Cash) and capitalize
         payment_method = request.POST.get('payment_method', 'Cash').capitalize()
-        if payment_method not in dict(Order.PAYMENT_METHOD_CHOICES):
+        if payment_method not in ('Cash', 'Card'):
             payment_method = 'Cash'
             
-        order.status = 'Completed'
-        order.payment_method = payment_method
+        # Get payment amount from post, fallback to remaining_amount
+        amount_str = request.POST.get('amount')
+        if amount_str:
+            try:
+                amount_to_pay = Decimal(amount_str)
+            except ValueError:
+                amount_to_pay = remaining_amount
+        else:
+            amount_to_pay = remaining_amount
+            
+        # Ensure it is positive and doesn't exceed the remaining balance
+        if amount_to_pay <= 0 or amount_to_pay > remaining_amount:
+            amount_to_pay = remaining_amount
+            
+        if amount_to_pay > 0:
+            # Create Payment record using selected method
+            Payment.objects.create(
+                invoice=invoice,
+                customer=order.customer,
+                amount=amount_to_pay,
+                payment_method=payment_method,
+                reference='auto-generated'
+            )
+            
+        # Re-evaluate payment status and split flag
+        total_paid = invoice.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        payments_count = invoice.payments.count()
+        
+        if total_paid >= Decimal(order_total):
+            # Fully paid
+            invoice.status = 'Paid'
+            order.status = 'Completed'
+            invoice.is_split = (payments_count > 1)
+        else:
+            # Partial payment — still unpaid, mark as split
+            invoice.status = 'Unpaid'
+            invoice.is_split = True
+            
+        invoice.save()
+        
+        # Determine what to store as the order's payment_method
+        if payments_count > 1:
+            # Check if all payments used the same method
+            distinct_methods = invoice.payments.values_list('payment_method', flat=True).distinct()
+            if distinct_methods.count() == 1:
+                order.payment_method = distinct_methods.first()
+            else:
+                order.payment_method = 'Split'
+        else:
+            order.payment_method = payment_method
         order.save()
-        # Create or get Invoice
-        invoice, created = Invoice.objects.get_or_create(
-            order=order,
-            defaults={'invoice_number': f'INV-{order.id}', 'status': 'Unpaid'}
-        )
-        # Create Payment record using selected method
-        Payment.objects.create(
-            invoice=invoice,
-            customer=order.customer,
-            amount=order_total,
-            payment_method=payment_method,
-            reference='auto-generated'
-        )
-        # Redirect to printable invoice page
+        
+        # If still unpaid, redirect back to payment page for the next installment
+        if invoice.status == 'Unpaid':
+            return redirect('order_payment', order_id=order.id)
         return redirect('order_detail', order_id=order.id)
     else:
         context = {
             'order': order,
             'items': items,
             'order_total': order_total,
+            'paid_amount': paid_amount,
+            'remaining_amount': remaining_amount,
             'payment_methods': [('Cash', 'Cash'), ('Card', 'Card')],
         }
         return render(request, 'pos/payment.html', context)
