@@ -122,7 +122,7 @@
             <tbody>
                 {% for item in items %}
                 <tr>
-                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.product_name }}</td>
                     <td class="center">{{ item.quantity }}</td>
                     <td class="right">${{ item.price_at_time_of_order }}</td>
                     <td class="right">${{ item.subtotal|floatformat:2 }}</td>

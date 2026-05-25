@@ -1,11 +1,45 @@
 import json
 from decimal import Decimal, InvalidOperation
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Sum, F
-from pos.models import Product, Order, OrderItem, Invoice, Customer, Payment
+from pos.models import Product, Order, OrderItem, Invoice, InvoiceItem, Customer, Payment
+
+
+def _create_invoice_for_order(order):
+    invoice_count = order.invoice.count() + 1
+    invoice = Invoice.objects.create(
+        order=order,
+        invoice_number=f'INV-{order.id}-{invoice_count}',
+        status='Unpaid',
+    )
+    for item in order.items.all():
+        subtotal = item.quantity * item.price_at_time_of_order
+        InvoiceItem.objects.create(
+            invoice=invoice,
+            order_item=item,
+            quantity=item.quantity,
+            unit_price=item.price_at_time_of_order,
+            subtotal=subtotal,
+            tax_amount=Decimal('0.00'),
+            discount_amount=Decimal('0.00'),
+            total_amount=subtotal,
+        )
+    invoice.recalculate(save=True)
+    return invoice
+
+
+def _get_active_invoice(order):
+    active_invoice = order.invoice.filter(status__in=('Unpaid', 'Overdue')).order_by('-issued_at', '-id').first()
+    if active_invoice:
+        return active_invoice
+    latest_invoice = order.invoice.order_by('-issued_at', '-id').first()
+    if latest_invoice:
+        return latest_invoice
+    return _create_invoice_for_order(order)
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
@@ -19,12 +53,14 @@ def order_list(request):
     )
 
     for order in orders:
-        invoice = getattr(order, 'invoice', None)
-        if not invoice:
+        invoices = list(order.invoice.all())
+        if not invoices:
             order.payment_method = None
             continue
 
-        methods = [payment.payment_method for payment in invoice.payments.all() if payment.payment_method]
+        methods = []
+        for inv in invoices:
+            methods.extend([payment.payment_method for payment in inv.payments.all() if payment.payment_method])
         order.payment_method = ' + '.join(methods) if methods else None
     
     context = {
@@ -42,8 +78,11 @@ def order_detail(request, order_id):
         item.subtotal = item.quantity * item.price_at_time_of_order
         order_total += item.subtotal
         
-    invoice = getattr(order, 'invoice', None)
-    payments = invoice.payments.all() if invoice else []
+    invoice = order.invoice.order_by('-issued_at', '-id').first()
+    payments = Payment.objects.filter(invoice__order=order).select_related('invoice').order_by('-paid_at')
+
+    method_list = [payment.payment_method for payment in payments if payment.payment_method]
+    order.payment_method = ' + '.join(method_list) if method_list else None
     
     context = {
         'order': order,
@@ -61,11 +100,9 @@ def mark_order_completed(request, order_id):
         order.status = 'Completed'
         order.save()
         
-        # Create Invoice
-        invoice, created = Invoice.objects.get_or_create(
-            order=order,
-            defaults={'invoice_number': f'INV-{order.id}'}
-        )
+        # Ensure at least one invoice exists
+        if not order.invoice.exists():
+            _create_invoice_for_order(order)
         
         return JsonResponse({"message": "Order marked as completed", "status": order.status})
     return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -74,11 +111,8 @@ def order_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     items = order.items.select_related('product').all()
     
-    # Ensure invoice exists (for any old completed orders)
-    invoice, created = Invoice.objects.get_or_create(
-        order=order,
-        defaults={'invoice_number': f'INV-{order.id}'}
-    )
+    # Use latest invoice, or create one if none exists.
+    invoice = order.invoice.order_by('-issued_at', '-id').first() or _create_invoice_for_order(order)
     
     order_total = 0
     for item in items:
@@ -104,112 +138,103 @@ def order_payment(request, order_id):
     # calculate totals
     order_total = sum(item.quantity * item.price_at_time_of_order for item in items)
     
-    # Create or get Invoice
-    invoice, created = Invoice.objects.get_or_create(
-        order=order,
-        defaults={'invoice_number': f'INV-{order.id}', 'status': 'Unpaid'}
-    )
+    # Get active invoice (supports multiple invoices per order)
+    invoice = _get_active_invoice(order)
+    invoice.recalculate(save=True)
     
     # Calculate already paid and remaining amount
-    paid_amount = invoice.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    remaining_amount = Decimal(order_total) - Decimal(paid_amount)
+    paid_amount = invoice.paid_amount
+    remaining_amount = invoice.balance_amount
     
     if request.method == 'POST':
-        # Optional split-by-amount mode: allows card and cash in a single submit.
-        split_mode = request.POST.get('split_amount_mode') == '1'
+        with transaction.atomic():
+            # Lock invoice row so concurrent payment attempts cannot overpay.
+            invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+            invoice.recalculate(save=True)
+            remaining_amount = invoice.balance_amount
 
-        if split_mode:
-            card_amount_raw = request.POST.get('card_amount', '0')
-            cash_amount_raw = request.POST.get('cash_amount', '0')
+            if remaining_amount <= 0:
+                return redirect('order_detail', order_id=order.id)
 
-            try:
-                card_amount = Decimal(card_amount_raw or '0')
-            except (ValueError, InvalidOperation):
-                card_amount = Decimal('0.00')
+            split_mode = request.POST.get('split_amount_mode') == '1'
 
-            try:
-                cash_amount = Decimal(cash_amount_raw or '0')
-            except (ValueError, InvalidOperation):
-                cash_amount = Decimal('0.00')
+            if split_mode:
+                card_amount_raw = request.POST.get('card_amount', '0')
+                cash_amount_raw = request.POST.get('cash_amount', '0')
 
-            if card_amount < 0:
-                card_amount = Decimal('0.00')
-            if cash_amount < 0:
-                cash_amount = Decimal('0.00')
-
-            split_total = card_amount + cash_amount
-
-            if split_total > remaining_amount:
-                card_amount = Decimal('0.00')
-                cash_amount = remaining_amount
-            elif split_total <= 0:
-                card_amount = Decimal('0.00')
-                cash_amount = remaining_amount
-
-            if card_amount > 0:
-                Payment.objects.create(
-                    invoice=invoice,
-                    customer=order.customer,
-                    amount=card_amount,
-                    payment_method='Card',
-                    reference='split-card'
-                )
-
-            if cash_amount > 0:
-                Payment.objects.create(
-                    invoice=invoice,
-                    customer=order.customer,
-                    amount=cash_amount,
-                    payment_method='Cash',
-                    reference='split-cash'
-                )
-        else:
-            # Determine payment method from request (default to Cash) and capitalize
-            payment_method = request.POST.get('payment_method', 'Cash').capitalize()
-            if payment_method not in ('Cash', 'Card'):
-                payment_method = 'Cash'
-
-            # Get payment amount from post, fallback to remaining_amount
-            amount_str = request.POST.get('amount')
-            if amount_str:
                 try:
-                    amount_to_pay = Decimal(amount_str)
+                    card_amount = Decimal(card_amount_raw or '0')
                 except (ValueError, InvalidOperation):
-                    amount_to_pay = remaining_amount
+                    card_amount = Decimal('0.00')
+
+                try:
+                    cash_amount = Decimal(cash_amount_raw or '0')
+                except (ValueError, InvalidOperation):
+                    cash_amount = Decimal('0.00')
+
+                card_amount = max(card_amount, Decimal('0.00'))
+                cash_amount = max(cash_amount, Decimal('0.00'))
+                split_total = card_amount + cash_amount
+
+                if split_total <= 0:
+                    return redirect('order_payment', order_id=order.id)
+
+                if split_total > remaining_amount:
+                    return redirect('order_payment', order_id=order.id)
+
+                if card_amount > 0:
+                    Payment.objects.create(
+                        invoice=invoice,
+                        customer=order.customer,
+                        amount=card_amount,
+                        payment_method='Card',
+                        reference='split-card'
+                    )
+
+                if cash_amount > 0:
+                    Payment.objects.create(
+                        invoice=invoice,
+                        customer=order.customer,
+                        amount=cash_amount,
+                        payment_method='Cash',
+                        reference='split-cash'
+                    )
             else:
-                amount_to_pay = remaining_amount
+                payment_method = (request.POST.get('payment_method', 'Cash') or 'Cash').strip().title()
 
-            # Ensure it is positive and doesn't exceed the remaining balance
-            if amount_to_pay <= 0 or amount_to_pay > remaining_amount:
-                amount_to_pay = remaining_amount
+                amount_str = request.POST.get('amount')
+                if amount_str:
+                    try:
+                        amount_to_pay = Decimal(amount_str)
+                    except (ValueError, InvalidOperation):
+                        return redirect('order_payment', order_id=order.id)
+                else:
+                    return redirect('order_payment', order_id=order.id)
 
-            if amount_to_pay > 0:
-                # Create Payment record using selected method
-                Payment.objects.create(
-                    invoice=invoice,
-                    customer=order.customer,
-                    amount=amount_to_pay,
-                    payment_method=payment_method,
-                    reference='auto-generated'
-                )
-            
-        # Re-evaluate payment status and split flag
-        total_paid = invoice.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        payments_count = invoice.payments.count()
-        
-        if total_paid >= Decimal(order_total):
-            # Fully paid
-            invoice.status = 'Paid'
-            order.status = 'Completed'
-            invoice.is_split = (payments_count > 1)
-        else:
-            # Partial payment — still unpaid, mark as split
-            invoice.status = 'Unpaid'
-            invoice.is_split = True
-            
-        invoice.save()
-        order.save()
-        
+                if amount_to_pay <= 0:
+                    return redirect('order_payment', order_id=order.id)
+
+                if amount_to_pay > remaining_amount:
+                    return redirect('order_payment', order_id=order.id)
+
+                try:
+                    Payment.objects.create(
+                        invoice=invoice,
+                        customer=order.customer,
+                        amount=amount_to_pay,
+                        payment_method=payment_method,
+                        reference='auto-generated'
+                    )
+                except ValidationError:
+                    return redirect('order_payment', order_id=order.id)
+
+            invoice.refresh_from_db()
+            invoice.recalculate(save=True)
+
+            has_unpaid_invoices = order.invoice.exclude(status='Paid').exists()
+            order.status = 'Pending' if has_unpaid_invoices else 'Completed'
+            order.save(update_fields=['status', 'updated_at'])
+
         # If still unpaid, redirect back to payment page for the next installment
         if invoice.status == 'Unpaid':
             return redirect('order_payment', order_id=order.id)
@@ -269,6 +294,7 @@ def create_order(request):
                     OrderItem.objects.create(
                         order=order,
                         product=product,
+                        product_name=product.name,
                         quantity=quantity,
                         price_at_time_of_order=product.price
                     )
@@ -278,12 +304,8 @@ def create_order(request):
                     Product.objects.get(id=item['product_id']).price * int(item['quantity'])
                     for item in items
                 )
-                # Create Invoice
-                invoice = Invoice.objects.create(
-                    order=order,
-                    invoice_number=f'INV-{order.id}',
-                    status='Unpaid'
-                )
+                # Create first invoice with item snapshots.
+                _create_invoice_for_order(order)
 
                 
             return JsonResponse({"message": "Order created successfully!", "order_id": order.id}, status=201)
