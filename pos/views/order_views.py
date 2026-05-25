@@ -41,6 +41,36 @@ def _get_active_invoice(order):
         return latest_invoice
     return _create_invoice_for_order(order)
 
+
+def _allocate_payment_to_invoice_items(invoice, amount, selected_item_ids=None):
+    remaining = amount
+    invoice_items = invoice.invoice_items.select_for_update().order_by('id')
+    if selected_item_ids:
+        invoice_items = invoice_items.filter(id__in=selected_item_ids)
+
+    for invoice_item in invoice_items:
+        if remaining <= Decimal('0.00'):
+            break
+
+        item_balance = invoice_item.balance_amount
+        if item_balance <= Decimal('0.00'):
+            continue
+
+        applied = min(item_balance, remaining)
+        invoice_item.paid_amount += applied
+        invoice_item.balance_amount -= applied
+        invoice_item.save(update_fields=['paid_amount', 'balance_amount'])
+        remaining -= applied
+
+    if remaining > Decimal('0.00'):
+        raise ValidationError('Unable to allocate payment to invoice items.')
+
+
+def _get_selected_invoice_items(invoice, selected_item_ids):
+    if not selected_item_ids:
+        return invoice.invoice_items.all()
+    return invoice.invoice_items.filter(id__in=selected_item_ids)
+
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
     orders = (
@@ -145,6 +175,7 @@ def order_payment(request, order_id):
     # Calculate already paid and remaining amount
     paid_amount = invoice.paid_amount
     remaining_amount = invoice.balance_amount
+    invoice_items = invoice.invoice_items.select_related('order_item').order_by('id')
     
     if request.method == 'POST':
         with transaction.atomic():
@@ -157,6 +188,11 @@ def order_payment(request, order_id):
                 return redirect('order_detail', order_id=order.id)
 
             split_mode = request.POST.get('split_amount_mode') == '1'
+            selected_item_ids = [
+                int(v) for v in request.POST.getlist('invoice_item_ids') if str(v).isdigit()
+            ]
+            selected_items = _get_selected_invoice_items(invoice, selected_item_ids)
+            selected_balance = selected_items.aggregate(total=Sum('balance_amount'))['total'] or Decimal('0.00')
 
             if split_mode:
                 card_amount_raw = request.POST.get('card_amount', '0')
@@ -182,6 +218,9 @@ def order_payment(request, order_id):
                 if split_total > remaining_amount:
                     return redirect('order_payment', order_id=order.id)
 
+                if split_total > selected_balance:
+                    return redirect('order_payment', order_id=order.id)
+
                 if card_amount > 0:
                     Payment.objects.create(
                         invoice=invoice,
@@ -190,6 +229,7 @@ def order_payment(request, order_id):
                         payment_method='Card',
                         reference='split-card'
                     )
+                    _allocate_payment_to_invoice_items(invoice, card_amount, selected_item_ids)
 
                 if cash_amount > 0:
                     Payment.objects.create(
@@ -199,6 +239,7 @@ def order_payment(request, order_id):
                         payment_method='Cash',
                         reference='split-cash'
                     )
+                    _allocate_payment_to_invoice_items(invoice, cash_amount, selected_item_ids)
             else:
                 payment_method = (request.POST.get('payment_method', 'Cash') or 'Cash').strip().title()
 
@@ -217,6 +258,9 @@ def order_payment(request, order_id):
                 if amount_to_pay > remaining_amount:
                     return redirect('order_payment', order_id=order.id)
 
+                if amount_to_pay > selected_balance:
+                    return redirect('order_payment', order_id=order.id)
+
                 try:
                     Payment.objects.create(
                         invoice=invoice,
@@ -225,6 +269,7 @@ def order_payment(request, order_id):
                         payment_method=payment_method,
                         reference='auto-generated'
                     )
+                    _allocate_payment_to_invoice_items(invoice, amount_to_pay, selected_item_ids)
                 except ValidationError:
                     return redirect('order_payment', order_id=order.id)
 
@@ -246,6 +291,7 @@ def order_payment(request, order_id):
             'order_total': order_total,
             'paid_amount': paid_amount,
             'remaining_amount': remaining_amount,
+            'invoice_items': invoice_items,
             'payment_methods': [('Cash', 'Cash'), ('Card', 'Card')],
         }
         return render(request, 'pos/payment.html', context)

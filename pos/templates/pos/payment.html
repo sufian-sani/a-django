@@ -752,6 +752,31 @@
                     </label>
                 </div>
 
+                <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+                    <label style="font-weight: 600; color: var(--text-main);">Select Items to Pay</label>
+                    <small id="selected-items-summary" style="color: var(--text-muted); display: block; margin-bottom: 0.5rem;">Selected item balance: $0.00</small>
+                    <div style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem; background: rgba(15,23,42,0.35);">
+                        {% for invoice_item in invoice_items %}
+                        <label style="display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.5rem; border-bottom: 1px dashed rgba(148, 163, 184, 0.2); gap: 0.75rem;">
+                            <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                <input
+                                    type="checkbox"
+                                    name="invoice_item_ids"
+                                    value="{{ invoice_item.id }}"
+                                    class="invoice-item-checkbox"
+                                    data-balance="{{ invoice_item.balance_amount|floatformat:2 }}"
+                                    {% if invoice_item.balance_amount > 0 %}checked{% else %}disabled{% endif %}
+                                >
+                                <span style="font-weight: 600; color: var(--text-main);">{{ invoice_item.order_item.product_name }}</span>
+                            </span>
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">Balance: ${{ invoice_item.balance_amount|floatformat:2 }}</span>
+                        </label>
+                        {% empty %}
+                        <div style="color: var(--text-muted); padding: 0.5rem;">No invoice items available.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
                 <!-- Amount to Pay -->
                 <div class="form-group" style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
                     <label for="amount-input" id="amount-input-label" style="font-weight: 600; font-size: 1.1rem; color: var(--text-main);">Amount to Pay ($)</label>
@@ -790,6 +815,38 @@
 
             function roundToCents(value) {
                 return Math.round(value * 100) / 100;
+            }
+
+            function getSelectedItemCheckboxes() {
+                return Array.from(document.querySelectorAll('.invoice-item-checkbox:checked'));
+            }
+
+            function getSelectedItemsBalance() {
+                const selected = getSelectedItemCheckboxes();
+                let total = 0;
+                selected.forEach((checkbox) => {
+                    total += parseFloat(checkbox.dataset.balance || '0') || 0;
+                });
+                return roundToCents(total);
+            }
+
+            function getCurrentMaxPayable() {
+                return Math.min(remainingAmount, getSelectedItemsBalance());
+            }
+
+            function refreshSelectedItemsSummary() {
+                const selectedBalance = getSelectedItemsBalance();
+                const summary = document.getElementById('selected-items-summary');
+                const amountInput = document.getElementById('amount-input');
+                const maxPayable = getCurrentMaxPayable();
+
+                summary.textContent = `Selected item balance: $${selectedBalance.toFixed(2)}`;
+                amountInput.max = maxPayable.toFixed(2);
+
+                const currentVal = parseFloat(amountInput.value) || 0;
+                if (currentVal > maxPayable) {
+                    amountInput.value = maxPayable > 0 ? maxPayable.toFixed(2) : '0.00';
+                }
             }
 
             function getSplitAmountsFromInput() {
@@ -887,12 +944,15 @@
             function getAmountToPay() {
                 if (splitAmountMode) {
                     const { card, cash } = getSplitAmountsFromInput();
-                    return roundToCents(card + cash);
+                    const total = roundToCents(card + cash);
+                    const maxPayable = getCurrentMaxPayable();
+                    return Math.min(total, maxPayable);
                 }
                 const amountInput = document.getElementById('amount-input');
                 const val = parseFloat(amountInput.value) || 0;
-                if (val > remainingAmount) {
-                    return remainingAmount;
+                const maxPayable = getCurrentMaxPayable();
+                if (val > maxPayable) {
+                    return maxPayable;
                 }
                 if (val <= 0) {
                     return 0.01;
@@ -993,7 +1053,8 @@
             function updatePayButtonState() {
                 const payBtn = document.getElementById('btn-pay');
                 const total = getAmountToPay();
-                payBtn.disabled = (total <= 0 || total > remainingAmount);
+                const maxPayable = getCurrentMaxPayable();
+                payBtn.disabled = (maxPayable <= 0 || total <= 0 || total > maxPayable);
             }
 
             // Listen to changes in amount to pay input
@@ -1005,7 +1066,7 @@
                 }
                 let val = parseFloat(amountInput.value) || 0;
                 if (val > remainingAmount) {
-                    amountInput.value = remainingAmount.toFixed(2);
+                    amountInput.value = getCurrentMaxPayable().toFixed(2);
                 }
                 refreshSplitPreview();
                 if (selectedMethod === 'cash') {
@@ -1016,6 +1077,18 @@
             });
 
             document.getElementById('split-amount-mode').addEventListener('change', toggleSplitAmountMode);
+
+            document.querySelectorAll('.invoice-item-checkbox').forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    refreshSelectedItemsSummary();
+                    refreshSplitPreview();
+                    updateButtonLabel();
+                    updatePayButtonState();
+                    if (selectedMethod === 'cash') {
+                        generateCashPresets();
+                    }
+                });
+            });
 
             // Credit Card Input formatting logic
             const ccNumInput = document.getElementById('card-number');
@@ -1097,6 +1170,7 @@
             amountInput.value = '0.00';
             document.getElementById('card-amount-input').value = '0.00';
             document.getElementById('cash-amount-input').value = '0.00';
+            refreshSelectedItemsSummary();
             generateCashPresets();
             refreshSplitPreview();
             updateButtonLabel();

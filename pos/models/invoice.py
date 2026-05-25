@@ -8,6 +8,7 @@ TWO_DP = 2
 class Invoice(models.Model):
     order = models.ForeignKey(Order, related_name='invoice', on_delete=models.CASCADE)
     invoice_number = models.CharField(max_length=50, unique=True)
+    split_type = models.CharField(max_length=20, default='full', help_text='full | item_wise | amount_wise')
     status = models.CharField(
         max_length=20,
         default='Unpaid',

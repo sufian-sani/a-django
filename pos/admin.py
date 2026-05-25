@@ -27,6 +27,7 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = (
         'invoice_number',
         'order',
+        'split_type',
         'status',
         'total_amount',
         'paid_amount',
@@ -35,7 +36,7 @@ class InvoiceAdmin(admin.ModelAdmin):
         'issued_at',
     )
     search_fields = ('invoice_number',)
-    list_filter = ('status', 'is_split', 'issued_at')
+    list_filter = ('split_type', 'status', 'is_split', 'issued_at')
 
 
 @admin.register(InvoiceItem)
@@ -50,6 +51,8 @@ class InvoiceItemAdmin(admin.ModelAdmin):
         'tax_amount',
         'discount_amount',
         'total_amount',
+        'paid_amount',
+        'balance_amount',
     )
     search_fields = ('invoice__invoice_number', 'order_item__product_name')
 

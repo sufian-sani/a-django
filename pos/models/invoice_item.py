@@ -16,6 +16,8 @@ class InvoiceItem(models.Model):
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    balance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     class Meta:
         db_table = 'invoice_items'
@@ -33,12 +35,28 @@ class InvoiceItem(models.Model):
         if self.order_item_id and self.quantity > self.order_item.quantity:
             raise ValidationError({'quantity': 'Quantity cannot exceed order item quantity.'})
 
+        if self.paid_amount < Decimal('0.00'):
+            raise ValidationError({'paid_amount': 'Paid amount cannot be negative.'})
+
+        if self.paid_amount > self.total_amount:
+            raise ValidationError({'paid_amount': 'Paid amount cannot exceed total amount.'})
+
     def save(self, *args, **kwargs):
-        self.full_clean()
         self.subtotal = self.quantity * self.unit_price
         self.total_amount = self.subtotal + self.tax_amount - self.discount_amount
         if self.total_amount < Decimal('0.00'):
             self.total_amount = Decimal('0.00')
+
+        if self.paid_amount < Decimal('0.00'):
+            self.paid_amount = Decimal('0.00')
+        if self.paid_amount > self.total_amount:
+            self.paid_amount = self.total_amount
+
+        self.balance_amount = self.total_amount - self.paid_amount
+        if self.balance_amount < Decimal('0.00'):
+            self.balance_amount = Decimal('0.00')
+
+        self.full_clean()
         super().save(*args, **kwargs)
         self.invoice.recalculate(save=True)
 
