@@ -9,9 +9,23 @@ from pos.models import Product, Order, OrderItem, Invoice, Customer, Payment
 
 def order_list(request):
     # Fetch orders and calculate their total price by summing item quantities * prices
-    orders = Order.objects.select_related('customer').annotate(
-        total_price=Sum(F('items__quantity') * F('items__price_at_time_of_order'))
-    ).order_by('-created_at')
+    orders = (
+        Order.objects.select_related('customer')
+        .prefetch_related('invoice__payments')
+        .annotate(
+            total_price=Sum(F('items__quantity') * F('items__price_at_time_of_order'))
+        )
+        .order_by('-created_at')
+    )
+
+    for order in orders:
+        invoice = getattr(order, 'invoice', None)
+        if not invoice:
+            order.payment_method = None
+            continue
+
+        methods = [payment.payment_method for payment in invoice.payments.all() if payment.payment_method]
+        order.payment_method = ' + '.join(methods) if methods else None
     
     context = {
         'orders': orders
