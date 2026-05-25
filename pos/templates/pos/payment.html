@@ -450,6 +450,82 @@
             box-shadow: none;
         }
 
+        .split-controls {
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            padding-top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .split-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .split-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .split-note {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .split-btn {
+            background: rgba(51, 65, 85, 0.35);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-weight: 600;
+            padding: 0.55rem 0.45rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .split-btn:hover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .split-mode-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .split-amount-grid {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .split-input-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .split-input-wrap input {
+            padding: 0.7rem 0.8rem;
+            text-align: right;
+            font-weight: 700;
+        }
+
+        @media (max-width: 560px) {
+            .split-amount-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Loading / Processing Overlay */
         .overlay {
             position: fixed;
@@ -593,6 +669,9 @@
             <form id="payment-form" method="POST" action="{% url 'order_payment' order.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="payment_method" id="payment-method-input" value="card">
+                <input type="hidden" name="split_amount_mode" id="split-amount-mode-input" value="0">
+                <input type="hidden" name="card_amount" id="card-amount-input" value="0.00">
+                <input type="hidden" name="cash_amount" id="cash-amount-input" value="0.00">
 
                 <!-- CARD PAYMENT SUBFORM -->
                 <div id="card-payment-section">
@@ -666,6 +745,27 @@
                     <small style="color: var(--text-muted); display: block; margin-top: 0.25rem;">Enter the amount for this specific transaction. Default is the remaining balance.</small>
                 </div>
 
+                <div class="split-controls">
+                    <div class="split-title-row">
+                        <span class="split-title">Split Bill</span>
+                        <span class="split-note" id="split-preview">Paying full remaining amount</span>
+                    </div>
+                    <label class="split-mode-toggle" for="split-amount-mode">
+                        <input type="checkbox" id="split-amount-mode">
+                        Split by amount (Card + Cash)
+                    </label>
+                    <div class="split-amount-grid" id="split-amount-grid">
+                        <div class="split-input-wrap">
+                            <label for="split-card-amount">Card Amount ($)</label>
+                            <input type="number" id="split-card-amount" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="split-input-wrap">
+                            <label for="split-cash-amount">Cash Amount ($)</label>
+                            <input type="number" id="split-cash-amount" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-pay" id="btn-pay">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                     <span id="btn-pay-text">Pay ${{ remaining_amount|floatformat:2 }}</span>
@@ -690,8 +790,102 @@
         
         if (remainingAmount > 0) {
             let selectedMethod = 'card';
+            let splitAmountMode = false;
+
+            function roundToCents(value) {
+                return Math.round(value * 100) / 100;
+            }
+
+            function refreshSplitPreview() {
+                const preview = document.getElementById('split-preview');
+                if (splitAmountMode) {
+                    const card = Math.max(0, parseFloat(document.getElementById('split-card-amount').value) || 0);
+                    const cash = Math.max(0, parseFloat(document.getElementById('split-cash-amount').value) || 0);
+                    const total = roundToCents(card + cash);
+                    if (total <= 0) {
+                        preview.textContent = 'Enter card and/or cash amount';
+                    } else if (total > remainingAmount) {
+                        preview.textContent = `Split total exceeds remaining by $${(total - remainingAmount).toFixed(2)}`;
+                    } else {
+                        preview.textContent = `Card $${card.toFixed(2)} + Cash $${cash.toFixed(2)} = $${total.toFixed(2)}`;
+                    }
+                } else {
+                    preview.textContent = 'Paying full remaining amount';
+                }
+            }
+
+            function syncSplitAmountsToForm() {
+                const card = Math.max(0, parseFloat(document.getElementById('split-card-amount').value) || 0);
+                const cash = Math.max(0, parseFloat(document.getElementById('split-cash-amount').value) || 0);
+                const total = roundToCents(card + cash);
+
+                document.getElementById('card-amount-input').value = card.toFixed(2);
+                document.getElementById('cash-amount-input').value = cash.toFixed(2);
+
+                if (splitAmountMode) {
+                    document.getElementById('amount-input').value = total.toFixed(2);
+                }
+
+                refreshSplitPreview();
+                updateButtonLabel();
+                updatePayButtonState();
+            }
+
+            function toggleSplitAmountMode() {
+                const enabled = document.getElementById('split-amount-mode').checked;
+                const splitGrid = document.getElementById('split-amount-grid');
+                const amountInput = document.getElementById('amount-input');
+                const cashInput = document.getElementById('cash-received');
+
+                splitAmountMode = enabled;
+                document.getElementById('split-amount-mode-input').value = enabled ? '1' : '0';
+                splitGrid.style.display = enabled ? 'grid' : 'none';
+
+                if (enabled) {
+                    amountInput.readOnly = true;
+                    amountInput.value = '0.00';
+                    cashInput.removeAttribute('required');
+                    cashInput.value = '';
+                    changeValue.textContent = '$0.00';
+                    changeValue.classList.remove('insufficient');
+                    syncSplitAmountsToForm();
+                } else {
+                    amountInput.readOnly = false;
+                    amountInput.value = remainingAmount.toFixed(2);
+                    document.getElementById('card-amount-input').value = '0.00';
+                    document.getElementById('cash-amount-input').value = '0.00';
+                    if (selectedMethod === 'cash') {
+                        cashInput.setAttribute('required', '');
+                    }
+                    generateCashPresets();
+                    refreshSplitPreview();
+                    updateButtonLabel();
+                    updatePayButtonState();
+                }
+            }
+
+            function updateButtonLabel() {
+                const btnPayText = document.getElementById('btn-pay-text');
+                if (splitAmountMode) {
+                    const card = Math.max(0, parseFloat(document.getElementById('split-card-amount').value) || 0);
+                    const cash = Math.max(0, parseFloat(document.getElementById('split-cash-amount').value) || 0);
+                    btnPayText.textContent = `Pay Card $${card.toFixed(2)} + Cash $${cash.toFixed(2)}`;
+                    return;
+                }
+                const amount = getAmountToPay().toFixed(2);
+                if (selectedMethod === 'cash') {
+                    btnPayText.textContent = `Collect Cash $${amount}`;
+                    return;
+                }
+                btnPayText.textContent = `Pay $${amount}`;
+            }
 
             function getAmountToPay() {
+                if (splitAmountMode) {
+                    const card = Math.max(0, parseFloat(document.getElementById('split-card-amount').value) || 0);
+                    const cash = Math.max(0, parseFloat(document.getElementById('split-cash-amount').value) || 0);
+                    return roundToCents(card + cash);
+                }
                 const amountInput = document.getElementById('amount-input');
                 const val = parseFloat(amountInput.value) || 0;
                 if (val > remainingAmount) {
@@ -712,7 +906,6 @@
                 const tabCash = document.getElementById('tab-cash');
                 const cardSection = document.getElementById('card-payment-section');
                 const cashSection = document.getElementById('cash-payment-section');
-                const btnPayText = document.getElementById('btn-pay-text');
 
                 if (method === 'card') {
                     tabCard.classList.add('active');
@@ -727,7 +920,7 @@
                     document.getElementById('cvv').setAttribute('required', '');
                     document.getElementById('cash-received').removeAttribute('required');
 
-                    btnPayText.textContent = `Pay $${getAmountToPay().toFixed(2)}`;
+                    updateButtonLabel();
                     updatePayButtonState();
                 } else {
                     tabCard.classList.remove('active');
@@ -740,9 +933,11 @@
                     document.getElementById('card-number').removeAttribute('required');
                     document.getElementById('expiry-date').removeAttribute('required');
                     document.getElementById('cvv').removeAttribute('required');
-                    document.getElementById('cash-received').setAttribute('required', '');
+                    if (!splitAmountMode) {
+                        document.getElementById('cash-received').setAttribute('required', '');
+                    }
 
-                    btnPayText.textContent = `Complete Cash Sale`;
+                    updateButtonLabel();
                     calculateChange();
                 }
             }
@@ -808,6 +1003,11 @@
 
             function updatePayButtonState() {
                 const payBtn = document.getElementById('btn-pay');
+                if (splitAmountMode) {
+                    const total = getAmountToPay();
+                    payBtn.disabled = (total <= 0 || total > remainingAmount);
+                    return;
+                }
                 if (selectedMethod === 'cash') {
                     const received = parseFloat(cashReceivedInput.value) || 0;
                     payBtn.disabled = (received < getAmountToPay());
@@ -819,17 +1019,24 @@
             // Listen to changes in amount to pay input
             const amountInput = document.getElementById('amount-input');
             amountInput.addEventListener('input', () => {
+                if (splitAmountMode) {
+                    return;
+                }
                 let val = parseFloat(amountInput.value) || 0;
                 if (val > remainingAmount) {
                     amountInput.value = remainingAmount.toFixed(2);
                 }
-                if (selectedMethod === 'card') {
-                    document.getElementById('btn-pay-text').textContent = `Pay $${getAmountToPay().toFixed(2)}`;
-                } else {
+                refreshSplitPreview();
+                if (selectedMethod === 'cash') {
                     calculateChange();
                     generateCashPresets();
                 }
+                updateButtonLabel();
             });
+
+            document.getElementById('split-amount-mode').addEventListener('change', toggleSplitAmountMode);
+            document.getElementById('split-card-amount').addEventListener('input', syncSplitAmountsToForm);
+            document.getElementById('split-cash-amount').addEventListener('input', syncSplitAmountsToForm);
 
             // Credit Card Input formatting logic
             const ccNumInput = document.getElementById('card-number');
@@ -909,6 +1116,9 @@
 
             // Initialize Cash presets
             generateCashPresets();
+            refreshSplitPreview();
+            updateButtonLabel();
+            updatePayButtonState();
         }
     </script>
 </body>

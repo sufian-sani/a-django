@@ -1,5 +1,5 @@
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -101,34 +101,83 @@ def order_payment(request, order_id):
     remaining_amount = Decimal(order_total) - Decimal(paid_amount)
     
     if request.method == 'POST':
-        # Determine payment method from request (default to Cash) and capitalize
-        payment_method = request.POST.get('payment_method', 'Cash').capitalize()
-        if payment_method not in ('Cash', 'Card'):
-            payment_method = 'Cash'
-            
-        # Get payment amount from post, fallback to remaining_amount
-        amount_str = request.POST.get('amount')
-        if amount_str:
+        # Optional split-by-amount mode: allows card and cash in a single submit.
+        split_mode = request.POST.get('split_amount_mode') == '1'
+
+        if split_mode:
+            card_amount_raw = request.POST.get('card_amount', '0')
+            cash_amount_raw = request.POST.get('cash_amount', '0')
+
             try:
-                amount_to_pay = Decimal(amount_str)
-            except ValueError:
-                amount_to_pay = remaining_amount
+                card_amount = Decimal(card_amount_raw or '0')
+            except (ValueError, InvalidOperation):
+                card_amount = Decimal('0.00')
+
+            try:
+                cash_amount = Decimal(cash_amount_raw or '0')
+            except (ValueError, InvalidOperation):
+                cash_amount = Decimal('0.00')
+
+            if card_amount < 0:
+                card_amount = Decimal('0.00')
+            if cash_amount < 0:
+                cash_amount = Decimal('0.00')
+
+            split_total = card_amount + cash_amount
+
+            if split_total > remaining_amount:
+                card_amount = Decimal('0.00')
+                cash_amount = remaining_amount
+            elif split_total <= 0:
+                card_amount = Decimal('0.00')
+                cash_amount = remaining_amount
+
+            if card_amount > 0:
+                Payment.objects.create(
+                    invoice=invoice,
+                    customer=order.customer,
+                    amount=card_amount,
+                    payment_method='Card',
+                    reference='split-card'
+                )
+
+            if cash_amount > 0:
+                Payment.objects.create(
+                    invoice=invoice,
+                    customer=order.customer,
+                    amount=cash_amount,
+                    payment_method='Cash',
+                    reference='split-cash'
+                )
         else:
-            amount_to_pay = remaining_amount
-            
-        # Ensure it is positive and doesn't exceed the remaining balance
-        if amount_to_pay <= 0 or amount_to_pay > remaining_amount:
-            amount_to_pay = remaining_amount
-            
-        if amount_to_pay > 0:
-            # Create Payment record using selected method
-            Payment.objects.create(
-                invoice=invoice,
-                customer=order.customer,
-                amount=amount_to_pay,
-                payment_method=payment_method,
-                reference='auto-generated'
-            )
+            # Determine payment method from request (default to Cash) and capitalize
+            payment_method = request.POST.get('payment_method', 'Cash').capitalize()
+            if payment_method not in ('Cash', 'Card'):
+                payment_method = 'Cash'
+
+            # Get payment amount from post, fallback to remaining_amount
+            amount_str = request.POST.get('amount')
+            if amount_str:
+                try:
+                    amount_to_pay = Decimal(amount_str)
+                except (ValueError, InvalidOperation):
+                    amount_to_pay = remaining_amount
+            else:
+                amount_to_pay = remaining_amount
+
+            # Ensure it is positive and doesn't exceed the remaining balance
+            if amount_to_pay <= 0 or amount_to_pay > remaining_amount:
+                amount_to_pay = remaining_amount
+
+            if amount_to_pay > 0:
+                # Create Payment record using selected method
+                Payment.objects.create(
+                    invoice=invoice,
+                    customer=order.customer,
+                    amount=amount_to_pay,
+                    payment_method=payment_method,
+                    reference='auto-generated'
+                )
             
         # Re-evaluate payment status and split flag
         total_paid = invoice.payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
