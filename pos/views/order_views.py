@@ -105,7 +105,7 @@ def order_payment(request, order_id):
             invoice=invoice,
             customer=order.customer,
             amount=order_total,
-            method=payment_method,
+            payment_method=payment_method,
             reference='auto-generated'
         )
         # Redirect to printable invoice page

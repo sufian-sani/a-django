@@ -30,6 +30,7 @@ Table invoices {
   id                int      [pk, increment]
   order_id          int      [ref: > orders.id, unique] // One‑to‑One with Order
   invoice_number    varchar(50) [unique]
+  is_split       boolean  [default: false]
   issued_at         timestamp [default: `now()`]
 }
 
@@ -43,12 +44,21 @@ Table customers {
   updated_at timestamp [default: `now()`]
 }
 
+Table order_splits {
+  id          int      [pk, increment]
+  order_id    int      [ref: > orders.id, not null]
+  customer_id int      [ref: > customers.id]   // the person responsible for this share
+  amount      decimal(10,2) [not null]          // their part of the total
+  note        varchar(255)                      // e.g. "pizza + soda"
+}
+
+
 Table payments {
   id            int      [pk, increment]
   invoice_id    int      [ref: > invoices.id, not null]
   customer_id   int      [ref: > customers.id]   // Nullable for walk‑ins
   amount        decimal(10,2) [not null]
-  method        varchar(20)
+  payment_method        varchar(20)
   reference     varchar(100)  // Gateway txn ID, card auth code, etc.
   paid_at       timestamp [default: `now()`]
 }
