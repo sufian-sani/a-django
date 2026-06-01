@@ -193,6 +193,16 @@ def order_payment(request, order_id):
             ]
             selected_items = _get_selected_invoice_items(invoice, selected_item_ids)
             selected_balance = selected_items.aggregate(total=Sum('balance_amount'))['total'] or Decimal('0.00')
+            payable_items_qs = invoice.invoice_items.filter(balance_amount__gt=0)
+            payable_items_count = payable_items_qs.count()
+            selected_payable_count = selected_items.filter(balance_amount__gt=0).count()
+
+            if split_mode:
+                invoice.split_type = Invoice.SPLIT_TYPE_AMOUNT_WISE
+            elif payable_items_count > 0 and selected_payable_count < payable_items_count:
+                invoice.split_type = Invoice.SPLIT_TYPE_ITEM_WISE
+            else:
+                invoice.split_type = Invoice.SPLIT_TYPE_FULL
 
             if split_mode:
                 card_amount_raw = request.POST.get('card_amount', '0')
@@ -275,6 +285,7 @@ def order_payment(request, order_id):
 
             invoice.refresh_from_db()
             invoice.recalculate(save=True)
+            invoice.save(update_fields=['split_type'])
 
             has_unpaid_invoices = order.invoice.exclude(status='Paid').exists()
             order.status = 'Pending' if has_unpaid_invoices else 'Completed'

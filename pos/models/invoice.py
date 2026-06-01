@@ -6,9 +6,23 @@ from .order import Order
 TWO_DP = 2
 
 class Invoice(models.Model):
+    SPLIT_TYPE_FULL = 'full'
+    SPLIT_TYPE_ITEM_WISE = 'item_wise'
+    SPLIT_TYPE_AMOUNT_WISE = 'amount_wise'
+    SPLIT_TYPE_CHOICES = (
+        (SPLIT_TYPE_FULL, 'Full'),
+        (SPLIT_TYPE_ITEM_WISE, 'Item Wise'),
+        (SPLIT_TYPE_AMOUNT_WISE, 'Amount Wise'),
+    )
+
     order = models.ForeignKey(Order, related_name='invoice', on_delete=models.CASCADE)
     invoice_number = models.CharField(max_length=50, unique=True)
-    split_type = models.CharField(max_length=20, default='full', help_text='full | item_wise | amount_wise')
+    split_type = models.CharField(
+        max_length=20,
+        choices=SPLIT_TYPE_CHOICES,
+        default=SPLIT_TYPE_FULL,
+        help_text='full | item_wise | amount_wise',
+    )
     status = models.CharField(
         max_length=20,
         default='Unpaid',
