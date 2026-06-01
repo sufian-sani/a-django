@@ -205,6 +205,7 @@ def order_payment(request, order_id):
                 payment_mode,
                 split_mode=split_mode,
                 has_partial_item_selection=(payable_items_count > 0 and selected_payable_count < payable_items_count),
+                save=True,
             )
 
             if split_mode:
@@ -288,7 +289,6 @@ def order_payment(request, order_id):
 
             invoice.refresh_from_db()
             invoice.recalculate(save=True)
-            invoice.save(update_fields=['split_type'])
 
             has_unpaid_invoices = order.invoice.exclude(status='Paid').exists()
             order.status = 'Pending' if has_unpaid_invoices else 'Completed'
