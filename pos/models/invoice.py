@@ -50,6 +50,25 @@ class Invoice(models.Model):
             return self.invoice_items.select_related('order_item')
         return self.order.items.all()
 
+    def resolve_split_type(self, payment_mode=None, *, split_mode=False, has_partial_item_selection=False):
+        mode = (payment_mode or 'full').strip().lower()
+
+        if split_mode or mode == 'amount':
+            return self.SPLIT_TYPE_AMOUNT_WISE
+        if mode == 'item' or has_partial_item_selection:
+            return self.SPLIT_TYPE_ITEM_WISE
+        return self.SPLIT_TYPE_FULL
+
+    def set_split_type_from_payment_mode(self, payment_mode=None, *, split_mode=False, has_partial_item_selection=False, save=False):
+        self.split_type = self.resolve_split_type(
+            payment_mode,
+            split_mode=split_mode,
+            has_partial_item_selection=has_partial_item_selection,
+        )
+        if save:
+            self.save(update_fields=['split_type'])
+        return self.split_type
+
     def recalculate_totals(self):
         invoice_items_qs = self.invoice_items.all()
         if invoice_items_qs.exists():

@@ -201,22 +201,11 @@ def order_payment(request, order_id):
             payable_items_count = payable_items_qs.count()
             selected_payable_count = selected_items.filter(balance_amount__gt=0).count()
 
-            # Source of truth priority:
-            # 1) explicit split_amount_mode flag (amount-wise)
-            # 2) explicit payment_mode value
-            # 3) infer from selected items as fallback
-            if split_mode:
-                invoice.split_type = Invoice.SPLIT_TYPE_AMOUNT_WISE
-            elif payment_mode == 'amount':
-                invoice.split_type = Invoice.SPLIT_TYPE_AMOUNT_WISE
-            elif payment_mode == 'item':
-                invoice.split_type = Invoice.SPLIT_TYPE_ITEM_WISE
-            elif payment_mode == 'full':
-                invoice.split_type = Invoice.SPLIT_TYPE_FULL
-            elif payable_items_count > 0 and selected_payable_count < payable_items_count:
-                invoice.split_type = Invoice.SPLIT_TYPE_ITEM_WISE
-            else:
-                invoice.split_type = Invoice.SPLIT_TYPE_FULL
+            invoice.set_split_type_from_payment_mode(
+                payment_mode,
+                split_mode=split_mode,
+                has_partial_item_selection=(payable_items_count > 0 and selected_payable_count < payable_items_count),
+            )
 
             if split_mode:
                 card_amount_raw = request.POST.get('card_amount', '0')
