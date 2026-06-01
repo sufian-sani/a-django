@@ -224,6 +224,10 @@
         if (remainingAmount > 0) {
             let selectedMethod = 'card';
             let paymentMode = 'full';
+            const initialSplitType = "{{ invoice.split_type|default:'full' }}";
+            const initialPaymentMode =
+                initialSplitType === 'amount_wise' ? 'amount'
+                : (initialSplitType === 'item_wise' ? 'item' : 'full');
 
             document.querySelectorAll('.invoice-item-checkbox').forEach((checkbox) => {
                 checkbox.dataset.baseDisabled = checkbox.disabled ? '1' : '0';
@@ -662,12 +666,18 @@
                 }
             });
 
+            // Restore previously selected split mode from persisted invoice.split_type.
+            const initialModeRadio = document.querySelector(`input[name="payment_mode"][value="${initialPaymentMode}"]`);
+            if (initialModeRadio) {
+                initialModeRadio.checked = true;
+            }
+
             // Initialize Cash presets
             amountInput.value = '0.00';
             document.getElementById('card-amount-input').value = '0.00';
             document.getElementById('cash-amount-input').value = '0.00';
             refreshSelectedItemsSummary();
-            setPaymentMode('full');
+            setPaymentMode(initialPaymentMode);
         }
     </script>
 </body>

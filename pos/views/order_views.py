@@ -301,6 +301,7 @@ def order_payment(request, order_id):
     else:
         context = {
             'order': order,
+            'invoice': invoice,
             'items': items,
             'order_total': order_total,
             'paid_amount': paid_amount,
