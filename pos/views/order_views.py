@@ -6,7 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db import transaction
 from django.db.models import Sum, F
-from pos.models import Product, Order, OrderItem, Invoice, InvoiceItem, Customer, Payment
+from pos.models import Product, Order, OrderItem, Invoice, InvoiceItem, Customer, Payment, PaymentAllocation
 
 
 def _create_invoice_for_order(order):
@@ -42,7 +42,8 @@ def _get_active_invoice(order):
     return _create_invoice_for_order(order)
 
 
-def _allocate_payment_to_invoice_items(invoice, amount, selected_item_ids=None):
+def _allocate_payment_to_invoice_items(payment, amount, selected_item_ids=None):
+    invoice = payment.invoice
     remaining = amount
     invoice_items = invoice.invoice_items.select_for_update().order_by('id')
     if selected_item_ids:
@@ -57,9 +58,11 @@ def _allocate_payment_to_invoice_items(invoice, amount, selected_item_ids=None):
             continue
 
         applied = min(item_balance, remaining)
-        invoice_item.paid_amount += applied
-        invoice_item.balance_amount -= applied
-        invoice_item.save(update_fields=['paid_amount', 'balance_amount'])
+        PaymentAllocation.objects.create(
+            payment=payment,
+            invoice_item=invoice_item,
+            allocated_amount=applied,
+        )
         remaining -= applied
 
     if remaining > Decimal('0.00'):
@@ -188,6 +191,7 @@ def order_payment(request, order_id):
                 return redirect('order_detail', order_id=order.id)
 
             split_mode = request.POST.get('split_amount_mode') == '1'
+            payment_mode = (request.POST.get('payment_mode', 'full') or 'full').strip().lower()
             selected_item_ids = [
                 int(v) for v in request.POST.getlist('invoice_item_ids') if str(v).isdigit()
             ]
@@ -197,8 +201,18 @@ def order_payment(request, order_id):
             payable_items_count = payable_items_qs.count()
             selected_payable_count = selected_items.filter(balance_amount__gt=0).count()
 
+            # Source of truth priority:
+            # 1) explicit split_amount_mode flag (amount-wise)
+            # 2) explicit payment_mode value
+            # 3) infer from selected items as fallback
             if split_mode:
                 invoice.split_type = Invoice.SPLIT_TYPE_AMOUNT_WISE
+            elif payment_mode == 'amount':
+                invoice.split_type = Invoice.SPLIT_TYPE_AMOUNT_WISE
+            elif payment_mode == 'item':
+                invoice.split_type = Invoice.SPLIT_TYPE_ITEM_WISE
+            elif payment_mode == 'full':
+                invoice.split_type = Invoice.SPLIT_TYPE_FULL
             elif payable_items_count > 0 and selected_payable_count < payable_items_count:
                 invoice.split_type = Invoice.SPLIT_TYPE_ITEM_WISE
             else:
@@ -232,24 +246,24 @@ def order_payment(request, order_id):
                     return redirect('order_payment', order_id=order.id)
 
                 if card_amount > 0:
-                    Payment.objects.create(
+                    card_payment = Payment.objects.create(
                         invoice=invoice,
                         customer=order.customer,
                         amount=card_amount,
                         payment_method='Card',
                         reference='split-card'
                     )
-                    _allocate_payment_to_invoice_items(invoice, card_amount, selected_item_ids)
+                    _allocate_payment_to_invoice_items(card_payment, card_amount, selected_item_ids)
 
                 if cash_amount > 0:
-                    Payment.objects.create(
+                    cash_payment = Payment.objects.create(
                         invoice=invoice,
                         customer=order.customer,
                         amount=cash_amount,
                         payment_method='Cash',
                         reference='split-cash'
                     )
-                    _allocate_payment_to_invoice_items(invoice, cash_amount, selected_item_ids)
+                    _allocate_payment_to_invoice_items(cash_payment, cash_amount, selected_item_ids)
             else:
                 payment_method = (request.POST.get('payment_method', 'Cash') or 'Cash').strip().title()
 
@@ -272,14 +286,14 @@ def order_payment(request, order_id):
                     return redirect('order_payment', order_id=order.id)
 
                 try:
-                    Payment.objects.create(
+                    payment = Payment.objects.create(
                         invoice=invoice,
                         customer=order.customer,
                         amount=amount_to_pay,
                         payment_method=payment_method,
                         reference='auto-generated'
                     )
-                    _allocate_payment_to_invoice_items(invoice, amount_to_pay, selected_item_ids)
+                    _allocate_payment_to_invoice_items(payment, amount_to_pay, selected_item_ids)
                 except ValidationError:
                     return redirect('order_payment', order_id=order.id)
 

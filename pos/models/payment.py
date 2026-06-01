@@ -25,15 +25,24 @@ class Payment(models.Model):
         if next_paid > self.invoice.total_amount:
             raise ValidationError({'amount': 'Payment exceeds invoice balance. Overpayment is not allowed.'})
 
+        if self.pk:
+            allocated = self.allocations.aggregate(total=Sum('allocated_amount'))['total'] or 0
+            if allocated > self.amount:
+                raise ValidationError({'amount': 'Payment amount cannot be less than allocated total.'})
+
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
-        self.invoice.recalculate(save=True)
+        from .payment_allocation import PaymentAllocation
+
+        PaymentAllocation.sync_invoice_payment_state(self.invoice)
 
     def delete(self, *args, **kwargs):
         invoice = self.invoice
         super().delete(*args, **kwargs)
-        invoice.recalculate(save=True)
+        from .payment_allocation import PaymentAllocation
+
+        PaymentAllocation.sync_invoice_payment_state(invoice)
 
     def __str__(self):
         return f"Payment {self.id} - {self.payment_method} - ${self.amount}"

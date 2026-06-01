@@ -489,6 +489,35 @@ input::placeholder {
     font-weight: 600;
 }
 
+.payment-mode-group {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+}
+
+.payment-mode-option {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: rgba(15, 23, 42, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem 0.75rem;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.payment-mode-option:hover {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.payment-mode-option input[type="radio"] {
+    width: auto;
+    margin: 0;
+}
+
 .split-summary-card {
     display: none;
     border: 1px solid rgba(59, 130, 246, 0.3);

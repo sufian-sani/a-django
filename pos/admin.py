@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Product, Order, OrderItem, Invoice, InvoiceItem, Customer, Payment
+from .models import Product, Order, OrderItem, Invoice, InvoiceItem, Customer, Payment, PaymentAllocation
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -67,3 +67,10 @@ class PaymentAdmin(admin.ModelAdmin):
     list_display = ('id', 'invoice', 'customer', 'amount', 'payment_method', 'reference', 'paid_at')
     search_fields = ('invoice__invoice_number', 'customer__name', 'reference')
     list_filter = ('payment_method', 'paid_at')
+
+
+@admin.register(PaymentAllocation)
+class PaymentAllocationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'payment', 'invoice_item', 'allocated_amount', 'allocated_at')
+    search_fields = ('payment__invoice__invoice_number', 'invoice_item__order_item__product_name')
+    list_filter = ('allocated_at',)

@@ -145,13 +145,23 @@
 
                 <div class="split-controls">
                     <div class="split-title-row">
-                        <span class="split-title">Split Bill</span>
+                        <span class="split-title">Payment Mode</span>
                         <span class="split-note" id="split-preview"></span>
                     </div>
-                    <label class="split-mode-toggle" for="split-amount-mode">
-                        <input type="checkbox" id="split-amount-mode">
-                        Split by amount
-                    </label>
+                    <div class="payment-mode-group" role="radiogroup" aria-label="Payment mode selection">
+                        <label class="payment-mode-option" for="payment-mode-full">
+                            <input type="radio" name="payment_mode" id="payment-mode-full" value="full" checked>
+                            <span>Full Payment</span>
+                        </label>
+                        <label class="payment-mode-option" for="payment-mode-item">
+                            <input type="radio" name="payment_mode" id="payment-mode-item" value="item">
+                            <span>Item-wise Payment</span>
+                        </label>
+                        <label class="payment-mode-option" for="payment-mode-amount">
+                            <input type="radio" name="payment_mode" id="payment-mode-amount" value="amount">
+                            <span>Amount-wise Split</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div class="form-group" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
@@ -213,7 +223,11 @@
         
         if (remainingAmount > 0) {
             let selectedMethod = 'card';
-            let splitAmountMode = false;
+            let paymentMode = 'full';
+
+            document.querySelectorAll('.invoice-item-checkbox').forEach((checkbox) => {
+                checkbox.dataset.baseDisabled = checkbox.disabled ? '1' : '0';
+            });
 
             function roundToCents(value) {
                 return Math.round(value * 100) / 100;
@@ -234,6 +248,16 @@
 
             function getCurrentMaxPayable() {
                 return Math.min(remainingAmount, getSelectedItemsBalance());
+            }
+
+            function setItemSelectionLock(locked) {
+                document.querySelectorAll('.invoice-item-checkbox').forEach((checkbox) => {
+                    const baseDisabled = checkbox.dataset.baseDisabled === '1';
+                    if (locked && !baseDisabled) {
+                        checkbox.checked = true;
+                    }
+                    checkbox.disabled = baseDisabled || locked;
+                });
             }
 
             function refreshSelectedItemsSummary() {
@@ -261,7 +285,15 @@
 
             function updateSplitAmountLabel() {
                 const amountLabel = document.getElementById('amount-input-label');
-                if (!splitAmountMode) {
+                if (paymentMode === 'full') {
+                    amountLabel.textContent = 'Full Payment Amount ($)';
+                    return;
+                }
+                if (paymentMode === 'item') {
+                    amountLabel.textContent = 'Item-wise Payment Amount ($)';
+                    return;
+                }
+                if (paymentMode !== 'amount') {
                     amountLabel.textContent = 'Amount to Pay ($)';
                     return;
                 }
@@ -272,7 +304,7 @@
                 const preview = document.getElementById('split-preview');
                 const amountHelpText = document.getElementById('amount-help-text');
 
-                if (splitAmountMode) {
+                if (paymentMode === 'amount') {
                     const { card, cash } = getSplitAmountsFromInput();
                     const total = roundToCents(card + cash);
                     const remainAfterThisPayment = Math.max(0, roundToCents(remainingAmount - total));
@@ -281,6 +313,14 @@
                         ? 'Enter split amount in the field below. Card is fixed at 0.00 in this one-field mode.'
                         : 'Enter split amount in the field below. Cash is fixed at 0.00 in this one-field mode.';
                     preview.textContent = `Remaining after this payment: $${remainAfterThisPayment.toFixed(2)}`;
+                } else if (paymentMode === 'item') {
+                    const selectedBalance = getCurrentMaxPayable();
+                    const remainAfterThisPayment = Math.max(0, roundToCents(remainingAmount - selectedBalance));
+                    amountHelpText.textContent = 'Select the items to pay. Amount is auto-calculated from selected items.';
+                    preview.textContent = `Remaining after this payment: $${remainAfterThisPayment.toFixed(2)}`;
+                } else if (paymentMode === 'full') {
+                    amountHelpText.textContent = 'Full payment mode pays all remaining selected item balance.';
+                    preview.textContent = `This payment will clear: $${getCurrentMaxPayable().toFixed(2)}`;
                 } else {
                     amountHelpText.textContent = 'Enter the amount for this specific transaction. Default is the remaining balance.';
                     preview.textContent = `Remaining balance: $${remainingAmount.toFixed(2)}`;
@@ -298,26 +338,49 @@
                 updatePayButtonState();
             }
 
-            function toggleSplitAmountMode() {
-                const enabled = document.getElementById('split-amount-mode').checked;
+            function setPaymentMode(mode) {
                 const amountInput = document.getElementById('amount-input');
-                const amountHelpText = document.getElementById('amount-help-text');
 
-                splitAmountMode = enabled;
-                document.getElementById('split-amount-mode-input').value = enabled ? '1' : '0';
+                paymentMode = mode;
+                document.getElementById('split-amount-mode-input').value = mode === 'amount' ? '1' : '0';
 
-                if (enabled) {
+                if (mode === 'full') {
+                    setItemSelectionLock(true);
+                    amountInput.readOnly = true;
+                    amountInput.value = getCurrentMaxPayable().toFixed(2);
+                    document.getElementById('card-amount-input').value = '0.00';
+                    document.getElementById('cash-amount-input').value = '0.00';
+                    generateCashPresets();
+                    refreshSplitPreview();
+                    updateSplitAmountLabel();
+                    updateButtonLabel();
+                    updatePayButtonState();
+                    return;
+                }
+
+                if (mode === 'item') {
+                    setItemSelectionLock(false);
+                    amountInput.readOnly = true;
+                    amountInput.value = getCurrentMaxPayable().toFixed(2);
+                    document.getElementById('card-amount-input').value = '0.00';
+                    document.getElementById('cash-amount-input').value = '0.00';
+                    generateCashPresets();
+                    refreshSplitPreview();
+                    updateSplitAmountLabel();
+                    updateButtonLabel();
+                    updatePayButtonState();
+                    return;
+                }
+
+                setItemSelectionLock(false);
+                if (mode === 'amount') {
                     amountInput.value = '0.00';
                     amountInput.readOnly = false;
                     updateSplitAmountLabel();
-                    amountHelpText.textContent = selectedMethod === 'cash'
-                        ? 'Enter split amount in the field below. Card is fixed at 0.00 in this one-field mode.'
-                        : 'Enter split amount in the field below. Cash is fixed at 0.00 in this one-field mode.';
                     syncSplitAmountsToForm();
                 } else {
                     amountInput.readOnly = false;
                     updateSplitAmountLabel();
-                    amountHelpText.textContent = 'Enter the amount for this specific transaction. Default is the remaining balance.';
                     amountInput.value = remainingAmount.toFixed(2);
                     document.getElementById('card-amount-input').value = '0.00';
                     document.getElementById('cash-amount-input').value = '0.00';
@@ -330,9 +393,17 @@
 
             function updateButtonLabel() {
                 const btnPayText = document.getElementById('btn-pay-text');
-                if (splitAmountMode) {
+                if (paymentMode === 'amount') {
                     const { card, cash } = getSplitAmountsFromInput();
                     btnPayText.textContent = `Submit Split Payment $${roundToCents(card + cash).toFixed(2)}`;
+                    return;
+                }
+                if (paymentMode === 'item') {
+                    btnPayText.textContent = `Pay Selected Items $${getCurrentMaxPayable().toFixed(2)}`;
+                    return;
+                }
+                if (paymentMode === 'full') {
+                    btnPayText.textContent = `Pay Full Balance $${getCurrentMaxPayable().toFixed(2)}`;
                     return;
                 }
                 const amount = getAmountToPay().toFixed(2);
@@ -344,7 +415,13 @@
             }
 
             function getAmountToPay() {
-                if (splitAmountMode) {
+                if (paymentMode === 'full') {
+                    return getCurrentMaxPayable();
+                }
+                if (paymentMode === 'item') {
+                    return getCurrentMaxPayable();
+                }
+                if (paymentMode === 'amount') {
                     const { card, cash } = getSplitAmountsFromInput();
                     const total = roundToCents(card + cash);
                     const maxPayable = getCurrentMaxPayable();
@@ -385,7 +462,7 @@
                     document.getElementById('cvv').setAttribute('required', '');
 
                     updateSplitAmountLabel();
-                    if (splitAmountMode) {
+                    if (paymentMode === 'amount') {
                         syncSplitAmountsToForm();
                     }
                     updateButtonLabel();
@@ -403,7 +480,7 @@
                     document.getElementById('cvv').removeAttribute('required');
 
                     updateSplitAmountLabel();
-                    if (splitAmountMode) {
+                    if (paymentMode === 'amount') {
                         syncSplitAmountsToForm();
                     }
                     updateButtonLabel();
@@ -439,9 +516,12 @@
                         btn.className = 'preset-btn';
                         btn.textContent = `$${val.toFixed(2)}`;
                         btn.onclick = () => {
+                            if (paymentMode !== 'amount') {
+                                return;
+                            }
                             const amountInput = document.getElementById('amount-input');
                             amountInput.value = Math.min(remainingAmount, val).toFixed(2);
-                            if (splitAmountMode) {
+                            if (paymentMode === 'amount') {
                                 syncSplitAmountsToForm();
                             } else {
                                 updateButtonLabel();
@@ -462,7 +542,14 @@
             // Listen to changes in amount to pay input
             const amountInput = document.getElementById('amount-input');
             amountInput.addEventListener('input', () => {
-                if (splitAmountMode) {
+                if (paymentMode === 'full' || paymentMode === 'item') {
+                    amountInput.value = getCurrentMaxPayable().toFixed(2);
+                    refreshSplitPreview();
+                    updateButtonLabel();
+                    updatePayButtonState();
+                    return;
+                }
+                if (paymentMode === 'amount') {
                     syncSplitAmountsToForm();
                     return;
                 }
@@ -478,11 +565,18 @@
                 updatePayButtonState();
             });
 
-            document.getElementById('split-amount-mode').addEventListener('change', toggleSplitAmountMode);
+            document.querySelectorAll('input[name="payment_mode"]').forEach((radio) => {
+                radio.addEventListener('change', (event) => {
+                    setPaymentMode(event.target.value);
+                });
+            });
 
             document.querySelectorAll('.invoice-item-checkbox').forEach((checkbox) => {
                 checkbox.addEventListener('change', () => {
                     refreshSelectedItemsSummary();
+                    if (paymentMode === 'item') {
+                        amountInput.value = getCurrentMaxPayable().toFixed(2);
+                    }
                     refreshSplitPreview();
                     updateButtonLabel();
                     updatePayButtonState();
@@ -573,10 +667,7 @@
             document.getElementById('card-amount-input').value = '0.00';
             document.getElementById('cash-amount-input').value = '0.00';
             refreshSelectedItemsSummary();
-            generateCashPresets();
-            refreshSplitPreview();
-            updateButtonLabel();
-            updatePayButtonState();
+            setPaymentMode('full');
         }
     </script>
 </body>

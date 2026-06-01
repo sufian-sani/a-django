@@ -1,0 +1,29 @@
+Table "Order" {
+    id int [pk]
+}
+
+Table Invoice {
+    id int [pk]
+    order_id int [not null, ref: > "Order".id]
+}
+
+Table InvoiceItem {
+    id int [pk]
+    invoice_id int [not null, ref: > Invoice.id]
+    order_item_id int [not null, ref: > OrderItem.id]
+}
+
+Table Payment {
+    id int [pk]
+    invoice_id int [not null, ref: > Invoice.id]
+}
+
+Table PaymentAllocation {
+    id int [pk]
+    payment_id int [not null, ref: > Payment.id]
+    invoice_item_id int [not null, ref: > InvoiceItem.id]
+}
+
+Table OrderItem {
+    id int [pk]
+}
