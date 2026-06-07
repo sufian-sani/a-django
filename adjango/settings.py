@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'users',
     'pos',
     'mydb',
+    'tweets',
 ]
 
 MIDDLEWARE = [
