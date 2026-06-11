@@ -32,6 +32,7 @@ def api_root(_request):
                 "profile": "/api/users/profile/",
                 "todos": "/api/todos/",
                 "notes": "/api/notes/",
+                "tweets": "/api/tweets/",
             },
         }
     )
@@ -42,5 +43,6 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path('api/todos/', include('todo.urls')),
     path('api/notes/', include('notes.urls')),
+    path('api/tweets/', include('tweets.urls')),
     path('pos/', include('pos.urls')),
 ]
