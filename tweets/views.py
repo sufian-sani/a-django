@@ -31,3 +31,18 @@ def tweet_create(request):
         "author": request.data.get("author", "demo"),
     }
     return Response(tweet, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def tweet_sample(request):
+    sample_data = {
+        "message": "This is a sample view from the tweets app.",
+        "endpoints": {
+            "list": "/api/tweets/",
+            "create": "/api/tweets/create/",
+            "sample": "/api/tweets/sample/",
+        },
+        "version": "1.0.0",
+    }
+    return Response(sample_data)
